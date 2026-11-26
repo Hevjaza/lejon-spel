@@ -107,3 +107,13 @@ details.card>summary{font-size:14px}
 .tag{display:inline-block;font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:999px;vertical-align:2px;margin-left:4px}
 .tag.twin{background:rgba(34,197,94,.18);color:#22c55e}.tag.tskr{background:rgba(249,115,22,.18);color:#f97316}
 .strip.one{grid-template-columns:1fr}
+/* v7 polish */
+.bhead{display:flex;justify-content:space-between;align-items:center;margin:16px 4px 6px;font-size:14.5px}
+.pgrid .svbtn.off{opacity:.45}
+.rg{font-size:12.5px}
+.strip b{line-height:1.3}
+h3{line-height:1.3}
+.upd{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62vw}
+.seg button{padding:8px 7px;font-size:13px}
+.seglbl{align-self:center;color:var(--sub);font-size:12px;font-weight:700;padding:0 4px 0 8px}
+.xh,.xrow{grid-template-columns:1fr 60px 60px 52px}.xo{font-size:19px}.xp{font-size:14px}.xs{font-size:13px}

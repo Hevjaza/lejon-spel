@@ -18,6 +18,7 @@ const passed = g => g && g.spelstopp && new Date(g.spelstopp) < Date.now();
 function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), 1800); }
 const games = () => S.data ? { stryktipset: S.data.fotboll.stryktipset, europatipset: S.data.fotboll.europatipset, topptipset: S.data.fotboll.topptipset, powerplay: (S.data.hockey || {}).powerplay, V75: S.data.trav.V75, V86: S.data.trav.V86 } : {};
 const FOOT = ['stryktipset', 'europatipset', 'topptipset', 'powerplay'];
+const KORT = { stryktipset: 'Stryk', europatipset: 'Europa', topptipset: 'Topp', powerplay: 'Power 🏒', bomben: 'Bomben' };
 const SPORTNAMN = { stryktipset: 'Stryktipset', europatipset: 'Europatipset', topptipset: 'Topptipset', powerplay: 'Powerplay 🏒', bomben: 'Bomben 💣' };
 function skrallTxt(sk, short) {
   if (!sk) return '';
@@ -37,7 +38,7 @@ async function refresh(manual) {
     S.data = await r.json();
     const live = Object.entries(games()).map(([k, g]) => k + ':' + g.omgang);
     Object.keys(S.sel).forEach(id => { if (!live.includes(id)) delete S.sel[id]; }); save('sel', S.sel);
-    $('#upd').textContent = 'Senast uppdaterad ' + fmt(S.data.uppdaterad) + ' (svensk tid)';
+    $('#upd').textContent = 'Uppdaterad ' + fmt(S.data.uppdaterad);
     render();
     if (manual) toast('Uppdaterat');
   } catch (e) {
@@ -56,12 +57,12 @@ function gameHead(g) {
 function winnerF(m) { // trolig vinnare fotboll/hockey
   if (!m.vinstchans) return m.duell ? 'Spelarduell – inga odds' : 'Odds saknas än';
   const p = m.vinstchans, i = p.indexOf(Math.max(...p)), r = Math.round(p[i]);
-  if (i === 1) return `Oavgjort (${r} %)`;
+  if (i === 1) return `${m.duell ? 'Lika' : 'Oavgjort'} (${r} %)`;
   const n = i === 0 ? m.hemma : m.borta;
   return p[i] < 45 ? `Jämn match · knapp favorit: ${n} (${r} %)` : `${n} (${r} %)`;
 }
 function winIdxF(m) { if (!m.vinstchans) return -1; return m.vinstchans.indexOf(Math.max(...m.vinstchans)); }
-function skrallF(m) { const b = m.skrall && m.skrall.basta; return b ? `${b.tecken === 'X' ? 'Oavgjort' : b.lag} (${b.tecken})` : 'Ingen tydlig skräll'; }
+function skrallF(m) { const b = m.skrall && m.skrall.basta; return b ? `${b.tecken === 'X' ? (m.duell ? 'Lika' : 'Oavgjort') : b.lag} (${b.tecken})` : 'Ingen tydlig skräll'; }
 function skrallIdxF(m) { const b = m.skrall && m.skrall.basta; return b ? '1X2'.indexOf(b.tecken) : -1; }
 function winH(l) { const hs = l.starter.filter(h => !h.struken && h.vinstchans != null); if (!hs.length) return null; return hs.reduce((a, h) => h.vinstchans > a.vinstchans ? h : a); }
 function skrallH(l) { const b = l.skrall && l.skrall.basta; return b ? `nr ${b.nr} ${b.namn}` : 'Ingen tydlig skräll'; }
@@ -80,9 +81,9 @@ function spikH(l) { // Spik eller gardera, i klartext
 }
 function stripH(l) {
   const w = winH(l), sp = spikH(l);
-  return strip([['Trolig vinnare (enligt oddsen)', w ? `nr ${w.nr} ${w.namn} (${Math.round(w.vinstchans)} % chans)` : 'Odds släpps senare', 'win'],
-    ['Spik eller gardera?', sp ? sp.t : '–', sp && sp.spik ? 'win' : 'gard'],
-    ['Skräll', skrallH(l), l.skrall && l.skrall.basta ? 'skr' : 'none2']], 'one');
+  return strip([['Trolig vinnare (enligt oddsen)', w ? `nr ${w.nr} ${w.namn} (${Math.round(w.vinstchans)} % chans)` : 'Odds släpps närmare loppet', w ? 'win' : 'none2'],
+    ...(sp ? [['Spika eller gardera?', sp.t, sp.spik ? 'win' : 'gard']] : []),
+    ...(w ? [['Skräll', skrallH(l), l.skrall && l.skrall.basta ? 'skr' : 'none2']] : [])], 'one');
 }
 
 /* ---------------- Översikt ---------------- */
@@ -116,18 +117,18 @@ function vOversikt() {
 function bombenBody(exaktFokus) {
   const b = S.data.bomben;
   if (!b || !b.omgangar || !b.omgangar.length) return `<div class="warn">${esc(b && b.meddelande || 'Ingen öppen Bomben-omgång just nu.')}</div>`;
-  const dist = (arr) => (arr || []).slice().sort((x, y) => y.p - x.p).slice(0, 3).map(x => `<span class="chip">${esc(x.mal)} mål · ${pct(x.p)}</span>`).join(' ');
-  return `<div class="warn">${esc(b.info)}</div>` + b.omgangar.map(o => `<div class="xlbl" style="font-size:13px;color:var(--txt)">${esc(o.namn)} · ${esc(o.tema)} (${esc(o.sport)}) · spelstopp ${esc(fmt(o.spelstopp))} · ${esc(left(o.spelstopp))}</div>` +
-    o.matcher.map(m => `<div class="card"><h3>${m.nr}. ${esc(m.hemma)} – ${esc(m.borta)}</h3><div class="muted">${esc(m.liga || '')} · ${esc(fmt(m.start))}</div>
-      ${m.exakt ? `<div class="xlbl">Exakt resultat – modell från odds</div><div class="xcs">${m.exakt.topp.map((t, i) => `<div class="xpill ${i === 0 ? 'gold' : ''}"><div class="r">${t.res}</div><div class="p">${pct(t.p)}</div></div>`).join('')}</div>
-        <div class="muted small" style="margin-top:6px">Odds ${m.exakt.odds.map(x => x.toLocaleString('sv-SE', { minimumFractionDigits: 2 })).join(' / ')} (${esc(m.oddsKalla)}) · xG ${m.exakt.xgHemma.toLocaleString('sv-SE')}–${m.exakt.xgBorta.toLocaleString('sv-SE')}${m.exakt.modell.includes('ordinarie') ? ' · ordinarie tid' : ''}</div>`
-        : `<div class="muted small" style="margin-top:8px">Matchen finns inte med odds på Stryk/Europa/Topptipset/Powerplay just nu – därför ingen oddsmodell (vi gissar inte).</div>`}
-      ${m.folketTopp ? `<div class="xlbl">Folkets mest spelade resultat</div><div class="cs" style="margin-top:0">${m.folketTopp.map(t => `<span class="pill" style="color:var(--blu);border-color:rgba(90,169,255,.3);background:rgba(90,169,255,.1)">${t.res} (${pct(t.p)})</span>`).join('')}</div>
-        <div class="muted small" style="margin-top:6px">${esc(m.hemma)}: ${dist(m.folketHemma)}</div><div class="muted small" style="margin-top:4px">${esc(m.borta)}: ${dist(m.folketBorta)}</div>
-        <div class="muted small" style="margin-top:4px">Beräknat från folkets streck per lag (Svenska Spel).</div>` : '<div class="muted small">Inga streck än.</div>'}
-      </div>`).join('')).join('');
+  const dist = (arr) => (arr || []).slice().sort((x, y) => y.p - x.p).slice(0, 3).map(x => `${esc(x.mal)} mål (${Math.round(x.p)} %)`).join(' · ');
+  const winB = m => { if (!m.exakt) return null; const p = m.exakt.vinstchans, i = p.indexOf(Math.max(...p)), r = Math.round(p[i]); if (i === 1) return `Oavgjort (${r} %)`; const n = i === 0 ? m.hemma : m.borta; return p[i] < 45 ? `Jämn match · knapp favorit: ${n} (${r} %)` : `${n} (${r} %)`; };
+  return `<p class="muted small" style="margin:0 4px 12px">Tippa exakt antal mål per lag. Svenska Spel har inga odds för Bomben – när samma match finns på Stryk-, Europa-, Topptipset eller Powerplay räknar vi från de oddsen.</p>` + b.omgangar.map(o => `<div class="bhead"><b>${esc(o.namn)} · ${esc(o.tema)}</b><span class="chip">${esc(left(o.spelstopp))}</span></div><div class="muted small" style="margin:-4px 4px 8px">${esc(o.sport)} · spelstopp ${esc(fmt(o.spelstopp))}</div>` +
+    o.matcher.map(m => `<div class="card"><h3>${m.nr}. ${esc(m.hemma)} – ${esc(m.borta)}</h3><div class="muted small">${esc(m.liga || '')} · ${esc(fmt(m.start))}</div>
+      ${strip([['Trolig vinnare (enligt oddsen)', winB(m) || 'Inga odds för matchen', m.exakt ? 'win' : 'none2'], ['Troligast resultat', m.exakt ? `${m.exakt.topp[0].res} (${Math.round(m.exakt.topp[0].p)} %)` : '–'], ['Folket tror mest på', m.folketTopp ? `${m.folketTopp[0].res} (${Math.round(m.folketTopp[0].p)} %)` : '–', 'skr']])}
+      ${m.exakt ? `<div class="xcs">${m.exakt.topp.map((t, i) => `<div class="xpill ${i === 0 ? 'gold' : ''}"><div class="r">${t.res}</div><div class="p">${Math.round(t.p)} %</div></div>`).join('')}</div>` : ''}
+      <details><summary>Visa mer detaljer</summary>
+        ${m.exakt ? `<div class="muted small">Odds ${m.exakt.odds.map(x => x.toLocaleString('sv-SE', { minimumFractionDigits: 2 })).join(' / ')} från ${esc(m.oddsKalla)}. Förväntade mål ${m.exakt.xgHemma.toLocaleString('sv-SE')}–${m.exakt.xgBorta.toLocaleString('sv-SE')}${m.exakt.modell.includes('ordinarie') ? ' (ordinarie tid)' : ''}.</div>` : '<div class="muted small">Matchen finns inte med odds på något annat spel just nu – därför inga resultat från odds (vi gissar inte).</div>'}
+        ${m.folketTopp ? `<div class="muted small" style="margin-top:6px">Folket spelar mest: ${m.folketTopp.map(t => `${t.res} (${Math.round(t.p)} %)`).join(' · ')}</div><div class="muted small" style="margin-top:4px">${esc(m.hemma)}: ${dist(m.folketHemma)}</div><div class="muted small" style="margin-top:2px">${esc(m.borta)}: ${dist(m.folketBorta)}</div>` : '<div class="muted small">Inga streck än.</div>'}
+      </details></div>`).join('')).join('');
 }
-function vBomben(seg) { const b = S.data.bomben || {}; return `<h2>Bomben 💣</h2><p class="lead">Öppna Bomben-omgångar (${(b.omgangar || []).length} st) – tippa exakt antal mål per lag.</p>${seg}${bombenBody()}`; }
+function vBomben(seg) { const b = S.data.bomben || {}; return `<h2>Bomben 💣</h2><p class="lead">${(b.omgangar || []).length} öppna omgångar</p>${seg}${bombenBody()}`; }
 
 /* ---------------- Fotboll ---------------- */
 function oddsRow(m) {
@@ -136,7 +137,7 @@ function oddsRow(m) {
 }
 function moreF(m) {
   const a = m.analys || {};
-  const bars = [0, 1, 2].map(i => `<div class="mrow"><b>${'1X2'[i]}</b><div style="flex:1"><div class="bar"><i class="o" style="width:${m.vinstchans ? m.vinstchans[i] : 0}%"></i></div><div class="bar"><i class="f" style="width:${m.streck ? m.streck[i] : 0}%"></i></div></div><span class="small">${pct(m.vinstchans && m.vinstchans[i])} / ${pct(m.streck && m.streck[i])}</span></div>`).join('');
+  const bars = [0, 1, 2].map(i => `<div class="mrow"><b>${'1X2'[i]}</b><div style="flex:1"><div class="bar"><i class="o" style="width:${m.vinstchans ? m.vinstchans[i] : 0}%"></i></div><div class="bar"><i class="f" style="width:${m.streck ? m.streck[i] : 0}%"></i></div></div><span class="small">chans ${m.vinstchans ? Math.round(m.vinstchans[i]) + ' %' : '–'} · folket ${m.streck ? Math.round(m.streck[i]) + ' %' : '–'}</span></div>`).join('');
   return `<details><summary>Visa mer detaljer & analys</summary>
     <div class="legend"><span><b style="background:var(--acc)"></b>Chans enligt odds</span><span><b style="background:var(--blu)"></b>Folkets streck</span></div>${bars}
     ${m.exakt ? `<div class="muted small" style="margin-top:6px">Fler troliga resultat: ${m.exakt.topp.map(t => `${t.res} (${Math.round(t.p)} %)`).join(' · ')} – räknat från oddsen${m.exakt.modell.includes('ordinarie') ? ', ordinarie tid' : ''}.</div>` : ''}
@@ -151,7 +152,7 @@ function matchCard(m) {
 }
 function vFotboll() {
   const g = games()[S.fg];
-  const seg = `<div class="seg">${[...FOOT, 'bomben'].map(k => `<button data-fg="${k}" class="${S.fg === k ? 'on' : ''}">${SPORTNAMN[k]}</button>`).join('')}</div>`;
+  const seg = `<div class="seg">${[...FOOT, 'bomben'].map(k => `<button data-fg="${k}" class="${S.fg === k ? 'on' : ''}">${KORT[k]}</button>`).join('')}</div>`;
   if (S.fg === 'bomben') return vBomben(seg);
   if (!g || !g.matcher) return `<h2>Sport</h2>${seg}${gameHead(g)}`;
   return `<h2>${esc(SPORTNAMN[S.fg] || g.namn)}</h2><p class="lead">Spelstopp ${esc(fmt(g.spelstopp))} · ${esc(left(g.spelstopp))}</p>${seg}
@@ -166,18 +167,18 @@ function vTrav() {
   if (!g || !g.lopp) return `<h2>Trav</h2>${seg}${gameHead(g)}`;
   if (S.avd >= g.lopp.length) S.avd = 0;
   const l = g.lopp[S.avd];
-  const aseg = `<div class="seg">${g.lopp.map((x, i) => `<button data-avd="${i}" class="${S.avd === i ? 'on' : ''}">Avd ${x.avd}</button>`).join('')}</div>`;
+  const aseg = `<div class="seg"><span class="seglbl">Avd</span>${g.lopp.map((x, i) => `<button data-avd="${i}" class="${S.avd === i ? 'on' : ''}">${x.avd}</button>`).join('')}</div>`;
   const info = !g.oddsFinns ? `<div class="warn">Odds och streck är inte släppta än – fylls i automatiskt.</div>` : '';
   const w = winH(l), sk = l.skrall && l.skrall.basta;
   const hs = [...l.starter].sort((a, b) => (a.struken - b.struken) || ((b.vinstchans ?? b.streck ?? -1) - (a.vinstchans ?? a.streck ?? -1)) || a.nr - b.nr);
   const a = l.analys || {};
   return `<h2>${esc(g.namn)} · ${esc((g.banor || []).join(' & '))}</h2><p class="lead">Första start ${esc(fmt(g.spelstopp))} · ${esc(left(g.spelstopp))}</p>${seg}
-  <button class="bigbtn" data-sv="${S.tg}">🏆 Bygg Storvinst för ${S.tg}</button>${gameHead(g)}${info}${aseg}
+  ${g.oddsFinns ? `<button class="bigbtn" data-sv="${S.tg}">🏆 Bygg Storvinst för ${S.tg}</button>` : ""}${gameHead(g)}${info}${aseg}
   <div class="card"><h3>Avd ${l.avd} · ${esc(l.bana)}</h3><div class="muted small">${esc(fmt(l.start))} · ${l.distans} m ${esc(l.startmetod || '')}start</div>
    ${stripH(l)}
    ${hs.map(h => `<div class="horse ${h.struken ? 'scr' : ''}"><div class="num ${w && h.nr === w.nr ? 'nwin' : ''} ${sk && h.nr === sk.nr ? 'nskr' : ''}">${h.nr}</div>
      <div><b>${esc(h.namn)}</b>${h.struken ? ' · struken' : ''}${w && h.nr === w.nr ? ` <span class="tag twin">${spikH(l) && spikH(l).spik ? 'Spik' : 'Vinnare'}</span>` : ''}${sk && h.nr === sk.nr ? ' <span class="tag tskr">Skräll</span>' : ''}<div class="muted small">${esc(h.kusk)}</div></div>
-     <div class="right"><div class="big2">${h.vinstchans != null ? Math.round(h.vinstchans) + ' %' : '–'}</div><div class="muted small">folket ${h.streck != null ? Math.round(h.streck) + ' %' : '–'}</div></div></div>`).join('')}
+     <div class="right"><div class="big2">${h.vinstchans != null ? Math.round(h.vinstchans) + ' %' : '–'}</div><div class="muted small">${h.streck != null ? 'folket ' + Math.round(h.streck) + ' %' : ''}</div></div></div>`).join('')}
    <details><summary>Visa mer detaljer & analys</summary>
    ${l.starter.filter(h => !h.struken).map(h => `<div class="muted small" style="padding:3px 0"><b>${h.nr} ${esc(h.namn)}</b> · odds ${h.odds ? h.odds.toLocaleString('sv-SE') : '–'} · form ${h.form && h.form.length ? esc(h.form.join('-')) : '–'} · i år ${h.aret.starter ?? 0} st/${h.aret.segrar ?? 0} seg · rekord ${esc(h.rekord || '–')} · tr. ${esc(h.tranare)}</div>`).join('')}
    <div class="muted small" style="margin-top:6px">${esc(l.namn || '')}</div>
@@ -220,15 +221,15 @@ function vSystem() {
   const c = sysCalc(S.sg);
   const dots = (win, skr) => `${win ? '<i class="dot dwin"></i>' : ''}${skr ? '<i class="dot dskr"></i>' : ''}`;
   const body = g.matcher ? g.matcher.map((m, i) => { const wi = winIdxF(m), si = skrallIdxF(m); return `<div class="card"><b>${m.nr}. ${esc(m.hemma)} – ${esc(m.borta)}</b>
-     <div class="muted small" style="margin:2px 0 8px">Trolig: <span class="win">${esc(winnerF(m))}</span> · Skräll: <span class="skr">${esc(skrallF(m))}</span></div>
+     <div class="muted small" style="margin:2px 0 8px">Trolig: <span class="${m.vinstchans ? 'win' : ''}">${esc(winnerF(m))}</span> · Skräll: <span class="${m.skrall && m.skrall.basta ? 'skr' : ''}">${esc(skrallF(m))}</span></div>
      <div class="tbtn">${[0, 1, 2].map(t => `<button data-pick="${i}:${t}" class="${o.s[i].includes(t) ? 'on' : ''}">${dots(t === wi, t === si)}${'1X2'[t]}</button>`).join('')}</div></div>`; }).join('')
     : g.lopp.map((l, i) => { const w = winH(l), sk = l.skrall && l.skrall.basta; return `<div class="card"><b>Avd ${l.avd} · ${esc(l.bana)}</b>
-     <div class="muted small" style="margin:2px 0 4px">Trolig: <span class="win">${w ? `nr ${w.nr} ${esc(w.namn)} (${Math.round(w.vinstchans)} %)` : '–'}</span> · Skräll: <span class="skr">${esc(skrallH(l))}</span></div>
+     <div class="muted small" style="margin:2px 0 4px">${w ? `Trolig: <span class="win">nr ${w.nr} ${esc(w.namn)} (${Math.round(w.vinstchans)} %)</span> · Skräll: <span class="${sk ? 'skr' : ''}">${esc(skrallH(l))}</span>` : 'Odds släpps närmare loppet'}</div>
      <div class="hgrid">${l.starter.map(h => `<button data-pick="${i}:${h.nr}" class="${o.s[i].includes(h.nr) ? 'on' : ''}" ${h.struken ? 'disabled' : ''}>${dots(w && h.nr === w.nr, sk && h.nr === sk.nr)}${h.nr}</button>`).join('')}</div></div>`; }).join('');
   return `<h2>Systembyggare</h2><p class="lead">${esc(SPORTNAMN[S.sg] || g.namn)} · ${kr(g.radpris)}/rad · spelstopp ${esc(fmt(g.spelstopp))}</p>${seg}${gameHead(g)}
    <div class="card sum"><div class="row"><div><div class="muted small">Rader</div><div class="big">${c.rows.toLocaleString('sv-SE')}</div></div><div style="text-align:right"><div class="muted small">Kostnad</div><div class="big" style="color:var(--acc)">${kr(c.cost)}</div></div></div>
    ${c.rows === 0 ? '<div class="muted small">Tryck på ett tecken/en häst i varje ' + (g.matcher ? 'match' : 'avdelning') + ' – eller välj en färdig kupong nedan.</div>' : ''}
-   <div class="pgrid"><button data-preset="lilla">Lilla</button><button data-preset="mellan">Mellan</button><button data-preset="stora">Stora</button><button class="svbtn" data-storvinst="1">🏆 Storvinst</button></div>
+   <div class="pgrid"><button data-preset="lilla">Lilla</button><button data-preset="mellan">Mellan</button><button data-preset="stora">Stora</button><button class="svbtn ${svLegs(g).some(L => L.hasOdds) ? '' : 'off'}" data-storvinst="1">🏆 Storvinst</button></div>
    <div class="btns"><button data-clear="1">Rensa</button><button class="btn pri" id="copy">Kopiera system</button></div></div>
    ${storvinstBox(o.id)}
    <div class="dlegend"><span><i class="dot dwin"></i>Trolig vinnare</span><span><i class="dot dskr"></i>Skräll</span></div>
@@ -238,7 +239,7 @@ function vSystem() {
 
 /* ---------------- Exakt & Odds ---------------- */
 function vExakt() {
-  const seg = `<div class="seg">${[['stryktipset', 'Stryk'], ['europatipset', 'Europa'], ['topptipset', 'Topp'], ['powerplay', 'Power 🏒'], ['bomben', 'Bomben 💣'], ['V75', 'V75 Odds']].map(([k, t]) => `<button data-eg="${k}" class="${S.eg === k ? 'on' : ''}">${t}</button>`).join('')}</div>`;
+  const seg = `<div class="seg">${[['stryktipset', 'Stryk'], ['europatipset', 'Europa'], ['topptipset', 'Topp'], ['powerplay', 'Power'], ['bomben', 'Bomben'], ['V75', 'V75']].map(([k, t]) => `<button data-eg="${k}" class="${S.eg === k ? 'on' : ''}">${t}</button>`).join('')}</div>`;
   const g = games()[S.eg];
   if (S.eg === 'bomben') return `<h2>Exakt & Odds · Bomben</h2><p class="lead">Exakt resultat per match i öppna Bomben-omgångar</p>${seg}${bombenBody()}`;
   if (S.eg === 'V75') {
@@ -284,7 +285,7 @@ function svLegs(g) {
 function storvinst(k) {
   const o = selFor(k); if (!o) return; const g = o.g;
   const legs = svLegs(g);
-  if (!legs.some(l => l.hasOdds)) { toast('Odds saknas än – Storvinst kräver odds'); return; }
+  if (!legs.some(l => l.hasOdds)) { toast('Storvinst går att bygga när oddsen har släppts'); return; }
   const [minKr, maxKr] = SV_BUDGET[k] || [200, 400];
   const maxRows = Math.floor(maxKr / g.radpris);
   const isF = !!g.matcher;
@@ -337,7 +338,7 @@ function storvinst(k) {
   const folk = legs.reduce((a, L, i) => a * L.opts.filter(x => pick[i].includes(x.key)).reduce((s, x) => s + x.f, 0) / 100, 1);
   const items = g.matcher || g.lopp;
   const lbl = i => isF ? `Match ${items[i].nr} (${items[i].hemma} – ${items[i].borta})` : `Avd ${items[i].avd}`;
-  const sign = (i, key) => isF ? (key === 1 ? 'X (oavgjort)' : `${'1X2'[key]} (${key === 0 ? items[i].hemma : items[i].borta})`) : `nr ${key} ${(items[i].starter.find(h => h.nr === key) || {}).namn || ''}`.trim();
+  const sign = (i, key) => isF ? (key === 1 ? (items[i].duell ? 'X (lika)' : 'X (oavgjort)') : `${'1X2'[key]} (${key === 0 ? items[i].hemma : items[i].borta})`) : `nr ${key} ${(items[i].starter.find(h => h.nr === key) || {}).namn || ''}`.trim();
   const list = (i, keys) => { const ks = keys.slice().sort((p1, p2) => p1 - p2); const s = ks.map(k2 => isF ? '1X2'[k2] : 'nr ' + k2); return s.length > 1 ? s.slice(0, -1).join(', ') + ' och ' + s[s.length - 1] : s[0]; };
   const lines = [];
   [...locked].sort((a2, b2) => a2 - b2).forEach(i => { const t = info[i].top; lines.push({ k: 'spik', t: `${lbl(i)}: spik på ${sign(i, t.key)} – vinner i ${Math.round(t.p)} % enligt oddsen och är inte överspelad.` }); });
@@ -373,7 +374,7 @@ function render() {
   const v = { oversikt: vOversikt, fotboll: vFotboll, trav: vTrav, exakt: vExakt, system: vSystem }[S.view] || vOversikt;
   $('#app').innerHTML = v();
   document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.v === S.view));
-  document.querySelectorAll('.seg button.on').forEach(b => { const p = b.parentElement; p.scrollLeft = b.offsetLeft - (p.clientWidth - b.offsetWidth) / 2; });
+  const y0 = window.scrollY; document.querySelectorAll('.seg button.on').forEach(b => { const p = b.parentElement; if (p.scrollWidth > p.clientWidth) { const pr = p.getBoundingClientRect(), br = b.getBoundingClientRect(); p.scrollTo({ left: p.scrollLeft + (br.left + br.width / 2) - (pr.left + pr.width / 2) }); } }); window.scrollTo(0, y0);
 }
 function go(v) { S.view = v; save('view', v); render(); window.scrollTo({ top: 0 }); }
 document.addEventListener('click', e => {
