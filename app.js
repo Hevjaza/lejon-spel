@@ -65,13 +65,24 @@ function skrallF(m) { const b = m.skrall && m.skrall.basta; return b ? `${b.teck
 function skrallIdxF(m) { const b = m.skrall && m.skrall.basta; return b ? '1X2'.indexOf(b.tecken) : -1; }
 function winH(l) { const hs = l.starter.filter(h => !h.struken && h.vinstchans != null); if (!hs.length) return null; return hs.reduce((a, h) => h.vinstchans > a.vinstchans ? h : a); }
 function skrallH(l) { const b = l.skrall && l.skrall.basta; return b ? `nr ${b.nr} ${b.namn}` : 'Ingen tydlig skräll'; }
-function strip(items) { return `<div class="strip">${items.map(([k, v, cls]) => `<div><span>${k}</span><b class="${cls || ''}">${esc(v)}</b></div>`).join('')}</div>`; }
+function strip(items, cls) { return `<div class="strip ${cls || ''}">${items.map(([k, v, cls]) => `<div><span>${k}</span><b class="${cls || ''}">${esc(v)}</b></div>`).join('')}</div>`; }
 function stripF(m) {
   return strip([['Trolig vinnare (enligt oddsen)', winnerF(m), 'win'], ['Bästa skräll', skrallF(m), m.skrall && m.skrall.basta ? 'skr' : 'none2'], ['Troligast resultat', m.exakt ? `${m.exakt.topp[0].res} (${Math.round(m.exakt.topp[0].p)} %)` : '–']]);
 }
+function spikH(l) { // Spik eller gardera, i klartext
+  const w = winH(l); if (!w) return null;
+  const hs = l.starter.filter(h => !h.struken && h.streck != null);
+  const fav = hs.length ? hs.reduce((a, h) => h.streck > a.streck ? h : a) : w;
+  const over = (fav.streck ?? 0) - (fav.vinstchans ?? 0);
+  if (w.vinstchans >= 40 && (w.streck == null || w.vinstchans - w.streck >= -5)) return { spik: true, t: `Spik: nr ${w.nr} ${w.namn}` };
+  if (over >= 8) return { spik: false, t: `Gardera – favoriten nr ${fav.nr} är överspelad` };
+  return { spik: false, t: 'Gardera – öppet lopp' };
+}
 function stripH(l) {
-  const w = winH(l);
-  return strip([['Trolig vinnare (enligt oddsen)', w ? `nr ${w.nr} ${w.namn} (${Math.round(w.vinstchans)} %)` : 'Odds släpps senare', 'win'], ['Bästa skräll', skrallH(l), l.skrall && l.skrall.basta ? 'skr' : 'none2']]);
+  const w = winH(l), sp = spikH(l);
+  return strip([['Trolig vinnare (enligt oddsen)', w ? `nr ${w.nr} ${w.namn} (${Math.round(w.vinstchans)} % chans)` : 'Odds släpps senare', 'win'],
+    ['Spik eller gardera?', sp ? sp.t : '–', sp && sp.spik ? 'win' : 'gard'],
+    ['Skräll', skrallH(l), l.skrall && l.skrall.basta ? 'skr' : 'none2']], 'one');
 }
 
 /* ---------------- Översikt ---------------- */
@@ -143,7 +154,8 @@ function vFotboll() {
   const seg = `<div class="seg">${[...FOOT, 'bomben'].map(k => `<button data-fg="${k}" class="${S.fg === k ? 'on' : ''}">${SPORTNAMN[k]}</button>`).join('')}</div>`;
   if (S.fg === 'bomben') return vBomben(seg);
   if (!g || !g.matcher) return `<h2>Sport</h2>${seg}${gameHead(g)}`;
-  return `<h2>${esc(SPORTNAMN[S.fg] || g.namn)}</h2><p class="lead">Spelstopp ${esc(fmt(g.spelstopp))} · ${esc(left(g.spelstopp))}</p>${seg}${gameHead(g)}
+  return `<h2>${esc(SPORTNAMN[S.fg] || g.namn)}</h2><p class="lead">Spelstopp ${esc(fmt(g.spelstopp))} · ${esc(left(g.spelstopp))}</p>${seg}
+   <button class="bigbtn" data-sv="${S.fg}">🏆 Bygg Storvinst för ${esc(SPORTNAMN[S.fg] || g.namn)}</button>${gameHead(g)}
    ${g.matcher.map(matchCard).join('')}`;
 }
 
@@ -159,11 +171,12 @@ function vTrav() {
   const w = winH(l), sk = l.skrall && l.skrall.basta;
   const hs = [...l.starter].sort((a, b) => (a.struken - b.struken) || ((b.vinstchans ?? b.streck ?? -1) - (a.vinstchans ?? a.streck ?? -1)) || a.nr - b.nr);
   const a = l.analys || {};
-  return `<h2>${esc(g.namn)} · ${esc((g.banor || []).join(' & '))}</h2><p class="lead">Första start ${esc(fmt(g.spelstopp))} · ${esc(left(g.spelstopp))}</p>${seg}${gameHead(g)}${info}${aseg}
+  return `<h2>${esc(g.namn)} · ${esc((g.banor || []).join(' & '))}</h2><p class="lead">Första start ${esc(fmt(g.spelstopp))} · ${esc(left(g.spelstopp))}</p>${seg}
+  <button class="bigbtn" data-sv="${S.tg}">🏆 Bygg Storvinst för ${S.tg}</button>${gameHead(g)}${info}${aseg}
   <div class="card"><h3>Avd ${l.avd} · ${esc(l.bana)}</h3><div class="muted small">${esc(fmt(l.start))} · ${l.distans} m ${esc(l.startmetod || '')}start</div>
    ${stripH(l)}
    ${hs.map(h => `<div class="horse ${h.struken ? 'scr' : ''}"><div class="num ${w && h.nr === w.nr ? 'nwin' : ''} ${sk && h.nr === sk.nr ? 'nskr' : ''}">${h.nr}</div>
-     <div><b>${esc(h.namn)}</b>${h.struken ? ' · struken' : ''}<div class="muted small">${esc(h.kusk)}</div></div>
+     <div><b>${esc(h.namn)}</b>${h.struken ? ' · struken' : ''}${w && h.nr === w.nr ? ` <span class="tag twin">${spikH(l) && spikH(l).spik ? 'Spik' : 'Vinnare'}</span>` : ''}${sk && h.nr === sk.nr ? ' <span class="tag tskr">Skräll</span>' : ''}<div class="muted small">${esc(h.kusk)}</div></div>
      <div class="right"><div class="big2">${h.vinstchans != null ? Math.round(h.vinstchans) + ' %' : '–'}</div><div class="muted small">folket ${h.streck != null ? Math.round(h.streck) + ' %' : '–'}</div></div></div>`).join('')}
    <details><summary>Visa mer detaljer & analys</summary>
    ${l.starter.filter(h => !h.struken).map(h => `<div class="muted small" style="padding:3px 0"><b>${h.nr} ${esc(h.namn)}</b> · odds ${h.odds ? h.odds.toLocaleString('sv-SE') : '–'} · form ${h.form && h.form.length ? esc(h.form.join('-')) : '–'} · i år ${h.aret.starter ?? 0} st/${h.aret.segrar ?? 0} seg · rekord ${esc(h.rekord || '–')} · tr. ${esc(h.tranare)}</div>`).join('')}

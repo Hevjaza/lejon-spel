@@ -103,3 +103,7 @@ details.card>summary{font-size:14px}
 .strip{grid-template-columns:1fr 1fr}.strip>div:first-child{grid-column:1/-1}
 .list .li{align-items:center}.list .li .chip{align-self:center}
 .strip b.none2{color:var(--sub);font-weight:600}
+.strip b.gard{color:#fbbf24}
+.tag{display:inline-block;font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:999px;vertical-align:2px;margin-left:4px}
+.tag.twin{background:rgba(34,197,94,.18);color:#22c55e}.tag.tskr{background:rgba(249,115,22,.18);color:#f97316}
+.strip.one{grid-template-columns:1fr}
