@@ -1,6 +1,6 @@
 // Lejon Spel service worker: nätverk först (alltid färsk data), cache bara som reserv offline.
-const CACHE = 'lejon-spel-v1';
-const SHELL = ['./', './index.html', './style.css', './app.js', './manifest.json', './icon-192.png', './apple-touch-icon.png'];
+const CACHE = 'lejon-spel-v2';
+const SHELL = ['./', './index.html', './style.css?v=2', './app.js?v=2', './manifest.json', './icon-192.png', './apple-touch-icon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== CACHE).map(x => caches.delete(x)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {

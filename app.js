@@ -1,6 +1,6 @@
 'use strict';
 const TZ = 'Europe/Stockholm';
-const S = { data: null, view: 'oversikt', fg: 'stryktipset', tg: 'V75', avd: 0, sortH: 'nr', sg: 'stryktipset', sel: load('sel') || {} };
+const S = { data: null, view: 'oversikt', fg: 'stryktipset', tg: 'V75', avd: 0, sortH: 'nr', sg: 'stryktipset', eg: 'stryktipset', sel: load('sel') || {} };
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const pct = v => v == null ? '–' : (Math.round(v * 10) / 10).toLocaleString('sv-SE') + ' %';
@@ -189,10 +189,41 @@ function vSystem() {
    <p class="muted" style="margin:10px 4px">Lilla/Mellan/Stora: spikar de säkraste enligt oddsen och garderar de öppnaste matcherna/loppen. Det är ett förslag – inte en garanti.</p>`;
 }
 
+
+/* ---------------- Exakt & Odds ---------------- */
+function vExakt() {
+  const seg = `<div class="seg">${[['stryktipset', 'Stryktipset'], ['europatipset', 'Europatipset'], ['V75', 'V75 Odds']].map(([k, t]) => `<button data-eg="${k}" class="${S.eg === k ? 'on' : ''}">${t}</button>`).join('')}</div>`;
+  const g = games()[S.eg];
+  if (S.eg === 'V75') {
+    if (!g || !g.lopp) return `<h2>Exakt & Odds</h2>${seg}${gameHead(g)}`;
+    const cards = g.lopp.map(l => {
+      const top = l.starter.filter(h => !h.struken).sort((a, b) => (b.vinstchans ?? b.streck ?? -1) - (a.vinstchans ?? a.streck ?? -1)).slice(0, 4);
+      return `<div class="card"><div class="row"><h3>Avd ${l.avd} · ${esc(l.bana)}</h3>${l.skrall ? lvl(l.skrall.niva) : ''}</div><div class="muted">${esc(fmt(l.start))} · ${l.distans} m ${esc(l.startmetod || '')}start</div>
+        <div class="xh"><span></span><span>Vinnarodds</span><span>Vinstchans</span><span>Streck</span></div>
+        ${top.map((h, i) => `<div class="xrow ${i === 0 ? 'first' : ''}"><div><span class="num">${h.nr}</span> <b>${esc(h.namn)}</b><div class="muted small">${esc(h.kusk)}</div></div>
+          <div class="xo">${h.odds ? h.odds.toLocaleString('sv-SE') : '–'}</div><div class="xp">${pct(h.vinstchans)}</div><div class="xs">${pct(h.streck)}</div></div>`).join('')}</div>`;
+    }).join('');
+    return `<h2>V75 Odds</h2><p class="lead">${esc((g.banor || []).join(' & '))} · första start ${esc(fmt(g.spelstopp))} (${esc(left(g.spelstopp))}) · topp 4 per avdelning</p>${seg}${gameHead(g)}
+      ${!g.oddsFinns ? '<div class="warn">Vinnaroddsen är inte släppta än – fylls i automatiskt.</div>' : ''}${cards}
+      <p class="muted" style="margin:10px 4px">Vinnarodds från ATG. Vinstchans = oddsen omräknade till procent (marginal borttagen). Streck = andel av V75-spelarna.</p>`;
+  }
+  if (!g || !g.matcher) return `<h2>Exakt & Odds</h2>${seg}${gameHead(g)}`;
+  const cards = g.matcher.map(m => {
+    if (m.struken) return `<div class="card"><h3>${m.nr}. ${esc(m.hemma)} – ${esc(m.borta)}</h3><div class="muted">Struken – lottas.</div></div>`;
+    const odds = [0, 1, 2].map(i => `<div class="xodd"><div class="t">${'1X2'[i]}</div><div class="o">${m.odds ? m.odds[i].toLocaleString('sv-SE', { minimumFractionDigits: 2 }) : '–'}</div><div class="c">${pct(m.vinstchans && m.vinstchans[i])}</div></div>`).join('');
+    const cs = m.exakt ? `<div class="xlbl">Exakt resultat</div><div class="xcs">${m.exakt.topp.map((t, i) => `<div class="xpill ${i === 0 ? 'gold' : ''}"><div class="r">${t.res}</div><div class="p">${pct(t.p)}</div></div>`).join('')}</div>
+      <div class="muted small" style="margin-top:6px">Modell från odds · xG ${esc(m.hemma)} ${m.exakt.xgHemma.toLocaleString('sv-SE')} – ${m.exakt.xgBorta.toLocaleString('sv-SE')} ${esc(m.borta)}</div>` : '<div class="muted small">Odds saknas – exakt resultat kan inte räknas än.</div>';
+    return `<div class="card"><h3>${m.nr}. ${esc(m.hemma)} – ${esc(m.borta)}</h3><div class="muted">${esc(m.liga || '')} · ${esc(fmt(m.start))}</div>
+      <div class="xlbl">Odds 1 / X / 2</div><div class="xodds">${odds}</div>${cs}</div>`;
+  }).join('');
+  return `<h2>Exakt & Odds</h2><p class="lead">${esc(g.namn)} omgång ${g.omgang} · spelstopp ${esc(fmt(g.spelstopp))} (${esc(left(g.spelstopp))})</p>${seg}${gameHead(g)}${cards}
+    <p class="muted" style="margin:10px 4px">Odds från Svenska Spel. Exakt resultat är en Poisson-modell räknad från oddsen – en sannolikhet, ingen garanti.</p>`;
+}
+
 /* ---------------- Render & events ---------------- */
 function render() {
   if (!S.data) return;
-  const v = { oversikt: vOversikt, fotboll: vFotboll, trav: vTrav, system: vSystem }[S.view];
+  const v = { oversikt: vOversikt, fotboll: vFotboll, trav: vTrav, exakt: vExakt, system: vSystem }[S.view] || vOversikt;
   $('#app').innerHTML = v();
   document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.v === S.view));
 }
@@ -206,6 +237,7 @@ document.addEventListener('click', e => {
   if (d.tg) { S.tg = d.tg; S.avd = 0; return render(); }
   if (d.avd) { S.avd = +d.avd; return render(); }
   if (d.sort) { S.sortH = d.sort; return render(); }
+  if (d.eg) { S.eg = d.eg; return render(); }
   if (d.sg) { S.sg = d.sg; return render(); }
   if (d.preset) return preset(S.sg, d.preset);
   if (d.clear) { const o = selFor(S.sg); o.s.forEach((_, i) => o.s[i] = []); save('sel', S.sel); return render(); }
@@ -213,7 +245,7 @@ document.addEventListener('click', e => {
   if (b.id === 'copy') { const t = sysText(S.sg); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('System kopierat'), () => { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('System kopierat'); }); }
   if (b.id === 'refresh') refresh(true);
 });
-S.view = (['oversikt','fotboll','trav','system'].includes(location.hash.slice(1)) && location.hash.slice(1)) || load('view') || 'oversikt';
+S.view = (['oversikt','fotboll','trav','exakt','system'].includes(location.hash.slice(1)) && location.hash.slice(1)) || load('view') || 'oversikt';
 refresh();
 setInterval(refresh, 5 * 60 * 1000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refresh(); });
