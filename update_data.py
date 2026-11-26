@@ -192,6 +192,13 @@ def football(product, notes, sport="fotboll", endpoint=None, product_id=None):
                 fav = max(range(3), key=lambda i: streck[i])
                 sk = 100 - prob[fav]
                 row["skrall"] = {"folketsFavorit": "1X2"[fav], "procent": round(sk, 1), "niva": level(sk, 35, 55)}
+                # bästa skrällval: icke-favorit med högst positivt spelvärde
+                cands = [i for i in range(3) if i != fav and prob[i] - streck[i] > 0]
+                if cands:
+                    b = max(cands, key=lambda i: prob[i] - streck[i])
+                    row["skrall"]["basta"] = {"tecken": "1X2"[b], "lag": [home, "oavgjort", away][b],
+                                              "chans": round(prob[b], 1), "streck": round(streck[b], 1),
+                                              "varde": round(prob[b] - streck[b], 1)}
         n = notes.get("football", {}).get(f"{product}-{d['drawNumber']}-{ev['eventNumber']}")
         row["analys"] = {"sv": (n or {}).get("sv"), "en": (n or {}).get("en"), "finns": bool(n)}
         matcher.append(row)
@@ -348,6 +355,11 @@ def trav(bet, notes, with_form=True):
             if fav.get("vinstchans") is not None:
                 sk = 100 - fav["vinstchans"]
                 skrall = {"folketsFavorit": fav["nr"], "procent": round(sk, 1), "niva": level(sk, 45, 65)}
+                cands = [x for x in live if x["nr"] != fav["nr"] and x.get("spelvarde") is not None and x["spelvarde"] > 0 and x["vinstchans"] >= 3]
+                if cands:
+                    b = max(cands, key=lambda x: x["spelvarde"])
+                    skrall["basta"] = {"nr": b["nr"], "namn": b["namn"], "chans": b["vinstchans"],
+                                       "streck": b["streck"], "varde": b["spelvarde"]}
         n = notes.get("trav", {}).get(f"{g['id']}-{i}")
         lopp.append({
             "avd": i, "id": r["id"], "namn": r.get("name"), "bana": r.get("track", {}).get("name"),

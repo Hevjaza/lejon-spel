@@ -19,6 +19,14 @@ function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add
 const games = () => S.data ? { stryktipset: S.data.fotboll.stryktipset, europatipset: S.data.fotboll.europatipset, topptipset: S.data.fotboll.topptipset, powerplay: (S.data.hockey || {}).powerplay, V75: S.data.trav.V75, V86: S.data.trav.V86 } : {};
 const FOOT = ['stryktipset', 'europatipset', 'topptipset', 'powerplay'];
 const SPORTNAMN = { stryktipset: 'Stryktipset', europatipset: 'Europatipset', topptipset: 'Topptipset', powerplay: 'Powerplay 🏒', bomben: 'Bomben 💣' };
+function skrallTxt(sk, short) {
+  if (!sk) return '';
+  const b = sk.basta;
+  if (!b) return short ? 'Ingen understreckad skräll' : 'Skräll: ingen understreckad skräll – oddsen och folket är överens här.';
+  const who = b.tecken ? `${b.tecken} (${b.lag})` : `nr ${b.nr} ${b.namn}`;
+  return short ? `Skräll: ${who}` : `Skräll: <b style="color:var(--acc)">${esc(who)}</b> · ${pct(b.chans)} chans mot ${pct(b.streck)} folket (<span class="val-p">${sgn(b.varde)}</span>)`;
+}
+const skrallLine = (sk) => sk ? `<div class="small" style="margin-top:6px">🎯 ${skrallTxt(sk)}</div>` : '';
 const lvl = n => `<span class="chip lv-${esc(n)}">${esc(n)} skrällchans</span>`;
 const valCls = v => v == null ? '' : v >= 0 ? 'val-p' : 'val-n';
 
@@ -65,8 +73,12 @@ function vOversikt() {
   for (const k of ['V75', 'V86']) { const g = G[k]; if (!g || !g.lopp) continue; g.lopp.forEach(l => l.starter.forEach(h => { if (!h.struken && h.spelvarde != null) horses.push({ g: k, l, h }); })); }
   const hv = horses.sort((a, b) => b.h.spelvarde - a.h.spelvarde).slice(0, 5);
   const skr = [];
-  for (const k of FOOT) { const g = G[k]; g && g.matcher && g.matcher.forEach(m => m.skrall && m.skrall.niva === 'Hög' && skr.push(`<div class="li"><span>${esc(g.namn)} ${m.nr}. ${esc(m.hemma)} – ${esc(m.borta)}</span><span class="chip lv-Hög">${pct(m.skrall.procent)}</span></div>`)); }
-  for (const k of ['V75', 'V86']) { const g = G[k]; g && g.lopp && g.lopp.forEach(l => l.skrall && l.skrall.niva === 'Hög' && skr.push(`<div class="li"><span>${k} avd ${l.avd} (${esc(l.bana)})</span><span class="chip lv-Hög">${pct(l.skrall.procent)}</span></div>`)); }
+  for (const k of FOOT) { const g = G[k]; g && g.matcher && g.matcher.forEach(m => m.skrall && m.skrall.niva === 'Hög' && skr.push(`<div class="li"><span>${esc(g.namn)} ${m.nr}. ${esc(m.hemma)} – ${esc(m.borta)}<br><span class="small" style="color:var(--acc)">${esc(skrallTxt(m.skrall, true))}</span></span><span class="chip lv-Hög">${pct(m.skrall.procent)}</span></div>`)); }
+  for (const k of ['V75', 'V86']) { const g = G[k]; g && g.lopp && g.lopp.forEach(l => l.skrall && l.skrall.niva === 'Hög' && skr.push(`<div class="li"><span>${k} avd ${l.avd} (${esc(l.bana)})<br><span class="small" style="color:var(--acc)">${esc(skrallTxt(l.skrall, true))}</span></span><span class="chip lv-Hög">${pct(l.skrall.procent)}</span></div>`)); }
+  const bs = [];
+  for (const k of FOOT) { const g = G[k]; g && g.matcher && g.matcher.forEach(m => m.skrall && m.skrall.basta && bs.push({ t: `${SPORTNAMN[k]} ${m.nr}. ${m.hemma} – ${m.borta}`, b: m.skrall.basta, w: `${m.skrall.basta.tecken} (${m.skrall.basta.lag})` })); }
+  for (const k of ['V75', 'V86']) { const g = G[k]; g && g.lopp && g.lopp.forEach(l => l.skrall && l.skrall.basta && bs.push({ t: `${k} avd ${l.avd}`, b: l.skrall.basta, w: `nr ${l.skrall.basta.nr} ${l.skrall.basta.namn}` })); }
+  bs.sort((x, y) => y.b.varde - x.b.varde);
   const cs = [];
   for (const k of FOOT) { const g = G[k]; g && g.matcher && g.matcher.forEach(m => m.exakt && cs.push({ g: g.namn, m, t: m.exakt.topp[0] })); }
   cs.sort((a, b) => b.t.p - a.t.p);
@@ -81,6 +93,7 @@ function vOversikt() {
   <div class="card"><h3>Starkaste favoriter</h3><div class="muted">Högst vinstchans enligt oddsen</div><div class="list">${favs.map(o => li(`${esc(o.g)} ${o.m.nr}. ${esc(o.m.hemma)} – ${esc(o.m.borta)} <b>${o.t}</b>`, pct(o.p))).join('') || '<div class="none">Inga odds än</div>'}</div></div>
   <div class="card"><h3>Bäst spelvärde – fotboll</h3><div class="muted">Vinstchans minus folkets streck</div><div class="list">${vals.map(o => li(`${esc(o.g)} ${o.m.nr}. ${esc(o.m.hemma)} – ${esc(o.m.borta)} <b>${o.t}</b> <span class="muted">(${pct(o.p)} mot ${pct(o.f)})</span>`, sgn(o.v), 'val-p')).join('') || '<div class="none">Inget tydligt spelvärde just nu</div>'}</div></div>
   <div class="card"><h3>Bäst spelvärde – trav</h3><div class="muted">Understreckade hästar</div><div class="list">${hv.map(o => li(`${o.g} avd ${o.l.avd}: <b>${o.h.nr} ${esc(o.h.namn)}</b> <span class="muted">(${pct(o.h.vinstchans)} mot ${pct(o.h.streck)})</span>`, sgn(o.h.spelvarde), o.h.spelvarde >= 0 ? 'val-p' : 'val-n')).join('') || '<div class="none">Odds och streck släpps närmare tävlingsdagen</div>'}</div></div>
+  <div class="card"><h3>🎯 Bästa skrällar</h3><div class="muted">Icke-favoriter med högst spelvärde (chans minus streck)</div><div class="list">${bs.slice(0, 8).map(o => `<div class="li"><span>${esc(o.t)}<br><b style="color:var(--acc)">${esc(o.w)}</b> <span class="muted small">${pct(o.b.chans)} chans mot ${pct(o.b.streck)} folket</span></span><span class="val-p"><b>${sgn(o.b.varde)}</b></span></div>`).join('') || '<div class="none">Inga understreckade skrällar just nu</div>'}</div></div>
   <div class="card"><h3>Skrällvarning</h3><div class="muted">Hög risk att folkets favorit inte vinner</div><div class="list">${skr.join('') || '<div class="none">Inga matcher/lopp med hög skrällchans</div>'}</div></div>
   <div class="card"><h3>Exakt resultat – troligast</h3><div class="muted">Modell från odds (Poisson)</div><div class="list">${cs.slice(0, 6).map(o => li(`${esc(o.g)} ${o.m.nr}. ${esc(o.m.hemma)} – ${esc(o.m.borta)}`, `${o.t.res} (${pct(o.t.p)})`)).join('') || '<div class="none">Inga odds än</div>'}</div></div>
   </div>
@@ -121,7 +134,7 @@ function matchCard(m) {
   return `<div class="card"><div class="row"><h3>${m.nr}. ${esc(m.hemma)} – ${esc(m.borta)}</h3>${m.skrall ? lvl(m.skrall.niva) : ''}</div>
    <div class="muted">${esc(m.liga || '')}${m.land ? ' · ' + esc(m.land) : ''} · ${esc(fmt(m.start))}</div>
    ${m.duell ? '<span class="chip">Spelarduell</span>' : ''}<div class="grid3">${oc}</div>${duell}${cs}
-   ${m.skrall ? `<div class="muted small" style="margin-top:8px">Folkets favorit <b>${m.skrall.folketsFavorit}</b> förlorar enligt oddsen i ${pct(m.skrall.procent)} av fallen.</div>` : ''}
+   ${m.skrall ? `<div class="muted small" style="margin-top:8px">Folkets favorit <b>${m.skrall.folketsFavorit}</b> förlorar enligt oddsen i ${pct(m.skrall.procent)} av fallen.</div>${skrallLine(m.skrall)}` : ''}
    <details><summary>Analys (svenska & engelska)</summary>
    <div class="note"><b>SV</b>${a.sv ? esc(a.sv) : '<span class="none">Ingen svensk expertanalys inlagd för den här matchen än.</span>'}</div>
    <div class="note"><b>EN</b>${a.en ? esc(a.en) : '<span class="none">Ingen engelsk förhandsanalys hittad (vanligt för lägre ligor) – vi gissar inte.</span>'}</div></details></div>`;
@@ -152,7 +165,7 @@ function vTrav() {
   return `<h2>${esc(g.namn)} · ${esc((g.banor || []).join(' & '))}</h2><p class="lead">Första start ${esc(fmt(g.spelstopp))} (${esc(left(g.spelstopp))}) · ${kr(g.radpris)}/rad</p>${seg}${gameHead(g)}${info}${aseg}
   <div class="card"><div class="row"><h3>Avd ${l.avd} · ${esc(l.bana)}</h3>${l.skrall ? lvl(l.skrall.niva) : ''}</div>
    <div class="muted">${esc(fmt(l.start))} · ${l.distans} m ${esc(l.startmetod || '')}start</div><div class="muted small">${esc(l.namn || '')}</div>
-   ${l.skrall ? `<div class="muted small" style="margin-top:6px">Folkets favorit nr <b>${l.skrall.folketsFavorit}</b> vinner inte enligt oddsen i ${pct(l.skrall.procent)} av fallen.</div>` : ''}
+   ${l.skrall ? `<div class="muted small" style="margin-top:6px">Folkets favorit nr <b>${l.skrall.folketsFavorit}</b> vinner inte enligt oddsen i ${pct(l.skrall.procent)} av fallen.</div>${skrallLine(l.skrall)}` : ''}
    <details ${a.sv || a.en ? 'open' : ''}><summary>Analys (svenska & engelska)</summary>
    <div class="note"><b>SV</b>${a.sv ? esc(a.sv) : '<span class="none">Ingen svensk expertanalys inlagd för loppet än.</span>'}</div>
    <div class="note"><b>EN</b>${a.en ? esc(a.en) : '<span class="none">Ingen engelsk analys hittad – svensk trav täcks sällan på engelska.</span>'}</div></details></div>
@@ -199,18 +212,19 @@ function vSystem() {
   if (!o) return `<h2>Systembyggare</h2>${seg}${gameHead(g)}`;
   const c = sysCalc(S.sg);
   const body = g.matcher ? g.matcher.map((m, i) => `<div class="card"><div class="row"><b>${m.nr}. ${esc(m.hemma)} – ${esc(m.borta)}</b>${m.skrall ? lvl(m.skrall.niva) : ''}</div>
-     <div class="muted small" style="margin:2px 0 8px">Chans ${m.vinstchans ? m.vinstchans.map(Math.round).join('/') : '–'} % · Folket ${m.streck ? m.streck.map(Math.round).join('/') : '–'} %${m.exakt ? ' · troligast ' + m.exakt.topp[0].res : ''}</div>
+     <div class="muted small" style="margin:2px 0 8px">Chans ${m.vinstchans ? m.vinstchans.map(Math.round).join('/') : '–'} % · Folket ${m.streck ? m.streck.map(Math.round).join('/') : '–'} %${m.exakt ? ' · troligast ' + m.exakt.topp[0].res : ''}${m.skrall ? ' · ' + esc(skrallTxt(m.skrall, true)) : ''}</div>
      <div class="tbtn">${[0, 1, 2].map(t => `<button data-pick="${i}:${t}" class="${o.s[i].includes(t) ? 'on' : ''}">${'1X2'[t]}</button>`).join('')}</div></div>`).join('')
     : g.lopp.map((l, i) => `<div class="card"><div class="row"><b>Avd ${l.avd} · ${esc(l.bana)}</b>${l.skrall ? lvl(l.skrall.niva) : ''}</div>
-     <div class="muted small">Toppchans: ${rank(g, i).slice(0, 3).map(nr => { const h = l.starter.find(x => x.nr === nr); return `${nr} ${esc(h.namn)} (${pct(h.vinstchans ?? h.streck)})`; }).join(' · ')}</div>
+     <div class="muted small">Toppchans: ${rank(g, i).slice(0, 3).map(nr => { const h = l.starter.find(x => x.nr === nr); return `${nr} ${esc(h.namn)} (${pct(h.vinstchans ?? h.streck)})`; }).join(' · ')}${l.skrall ? ' · ' + esc(skrallTxt(l.skrall, true)) : ''}</div>
      <div class="hgrid">${l.starter.map(h => `<button data-pick="${i}:${h.nr}" class="${o.s[i].includes(h.nr) ? 'on' : ''}" ${h.struken ? 'disabled' : ''}>${h.nr}</button>`).join('')}</div></div>`).join('');
   return `<h2>Systembyggare</h2><p class="lead">${esc(SPORTNAMN[S.sg] || g.namn)} ${g.matcher ? 'omgång ' + g.omgang : ''} · ${kr(g.radpris)}/rad · spelstopp ${esc(fmt(g.spelstopp))}</p>${seg}${gameHead(g)}
    <div class="card sum"><div class="row"><div><div class="muted small">Rader</div><div class="big">${c.rows.toLocaleString('sv-SE')}</div></div><div style="text-align:right"><div class="muted small">Kostnad</div><div class="big" style="color:var(--acc)">${kr(c.cost)}</div></div></div>
    ${c.rows === 0 ? '<div class="muted small">Välj minst ett tecken/en häst i varje ' + (g.matcher ? 'match' : 'avdelning') + '.</div>' : ''}
    <div class="btns"><button data-preset="lilla">Lilla</button><button data-preset="mellan">Mellan</button><button data-preset="stora">Stora</button><button data-clear="1">Rensa</button></div>
-   <div class="btns"><button class="btn pri" id="copy">Kopiera system</button></div></div>
+   <div class="btns"><button class="btn" data-storvinst="1" style="border-color:rgba(255,196,0,.6);color:var(--acc)">🏆 Storvinst</button><button class="btn pri" id="copy">Kopiera system</button></div></div>
+   ${storvinstBox(o.id)}
    ${body}
-   <p class="muted" style="margin:10px 4px">Lilla/Mellan/Stora: spikar de säkraste enligt oddsen och garderar de öppnaste matcherna/loppen. Det är ett förslag – inte en garanti.</p>`;
+   <p class="muted" style="margin:10px 4px">Lilla/Mellan/Stora: spikar de säkraste enligt oddsen och garderar de öppnaste. 🏆 Storvinst: spelvärde-strategi – värdespikar, garderar/fäller överstreckade favoriter och tar med understreckade tecken inom en budget. Förslag – ingen garanti.</p>`;
 }
 
 
@@ -226,7 +240,7 @@ function vExakt() {
       return `<div class="card"><div class="row"><h3>Avd ${l.avd} · ${esc(l.bana)}</h3>${l.skrall ? lvl(l.skrall.niva) : ''}</div><div class="muted">${esc(fmt(l.start))} · ${l.distans} m ${esc(l.startmetod || '')}start</div>
         <div class="xh"><span></span><span>Vinnarodds</span><span>Vinstchans</span><span>Streck</span></div>
         ${top.map((h, i) => `<div class="xrow ${i === 0 ? 'first' : ''}"><div><span class="num">${h.nr}</span> <b>${esc(h.namn)}</b><div class="muted small">${esc(h.kusk)}</div></div>
-          <div class="xo">${h.odds ? h.odds.toLocaleString('sv-SE') : '–'}</div><div class="xp">${pct(h.vinstchans)}</div><div class="xs">${pct(h.streck)}</div></div>`).join('')}</div>`;
+          <div class="xo">${h.odds ? h.odds.toLocaleString('sv-SE') : '–'}</div><div class="xp">${pct(h.vinstchans)}</div><div class="xs">${pct(h.streck)}</div></div>`).join('')}${skrallLine(l.skrall)}</div>`;
     }).join('');
     return `<h2>V75 Odds</h2><p class="lead">${esc((g.banor || []).join(' & '))} · första start ${esc(fmt(g.spelstopp))} (${esc(left(g.spelstopp))}) · topp 4 per avdelning</p>${seg}${gameHead(g)}
       ${!g.oddsFinns ? '<div class="warn">Vinnaroddsen är inte släppta än – fylls i automatiskt.</div>' : ''}${cards}
@@ -240,10 +254,112 @@ function vExakt() {
     const cs = m.exakt ? `<div class="xlbl">Exakt resultat</div><div class="xcs">${m.exakt.topp.map((t, i) => `<div class="xpill ${i === 0 ? 'gold' : ''}"><div class="r">${t.res}</div><div class="p">${pct(t.p)}</div></div>`).join('')}</div>
       <div class="muted small" style="margin-top:6px">Modell från odds${S.eg === 'powerplay' ? ' (ordinarie tid)' : ''} · xG ${esc(m.hemma)} ${m.exakt.xgHemma.toLocaleString('sv-SE')} – ${m.exakt.xgBorta.toLocaleString('sv-SE')} ${esc(m.borta)}</div>` : '<div class="muted small">Odds saknas – exakt resultat kan inte räknas än.</div>';
     return `<div class="card"><h3>${m.nr}. ${esc(m.hemma)} – ${esc(m.borta)}</h3><div class="muted">${esc(m.liga || '')} · ${esc(fmt(m.start))}</div>
-      <div class="xlbl">Odds 1 / X / 2</div><div class="xodds">${odds}</div>${cs}</div>`;
+      <div class="xlbl">Odds 1 / X / 2</div><div class="xodds">${odds}</div>${cs}${skrallLine(m.skrall)}</div>`;
   }).join('');
   return `<h2>Exakt & Odds</h2><p class="lead">${esc(SPORTNAMN[S.eg] || g.namn)} omgång ${g.omgang} · spelstopp ${esc(fmt(g.spelstopp))} (${esc(left(g.spelstopp))})</p>${seg}${gameHead(g)}${cards}
     <p class="muted" style="margin:10px 4px">Odds från Svenska Spel. Exakt resultat är en Poisson-modell räknad från oddsen – en sannolikhet, ingen garanti.${S.eg === 'powerplay' ? ' Hockey: 1X2 och resultat gäller ordinarie tid (60 min).' : ''}</p>`;
+}
+
+
+/* ---------------- 🏆 Storvinst (spelvärde-strategi) ---------------- */
+// Bygger på hur poolspel betalar: du delar potten med alla som har samma rad. Därför
+// spikas tecken med hög vinstchans OCH rimligt streck (värdespikar), medan överstreckade
+// favoriter (folket % >> odds %) garderas eller fälls, och understreckade tecken prioriteras.
+const SV_BUDGET = { stryktipset: [192, 384], europatipset: [192, 384], topptipset: [64, 128], powerplay: [64, 128], V75: [200, 400], V86: [200, 400] };
+function svLegs(g) {
+  if (g.matcher) return g.matcher.map(m => {
+    const hasOdds = !!m.vinstchans, p = m.vinstchans || m.streck || [34, 33, 33], f = m.streck || p;
+    return { label: `${m.nr}. ${m.hemma} – ${m.borta}`, hasOdds, opts: [0, 1, 2].map(i => ({ key: i, name: '1X2'[i], p: p[i], f: f[i] })) };
+  });
+  return g.lopp.map(l => {
+    const hs = l.starter.filter(h => !h.struken);
+    const hasOdds = hs.some(h => h.vinstchans != null);
+    return { label: `Avd ${l.avd}`, hasOdds, opts: hs.map(h => ({ key: h.nr, name: `${h.nr} ${h.namn}`, p: hasOdds ? (h.vinstchans ?? 0) : (h.streck ?? 0), f: h.streck ?? (h.vinstchans ?? 0) })) };
+  });
+}
+function storvinst(k) {
+  const o = selFor(k); if (!o) return; const g = o.g;
+  const legs = svLegs(g);
+  if (!legs.some(l => l.hasOdds)) { toast('Odds saknas än – Storvinst kräver odds'); return; }
+  const [minKr, maxKr] = SV_BUDGET[k] || [200, 400];
+  const maxRows = Math.floor(maxKr / g.radpris);
+  const isF = !!g.matcher;
+  const spikP = isF ? 50 : 35; // minsta vinstchans för värdespik
+  const pick = [], info = legs.map(() => ({}));
+  legs.forEach((L, i) => {
+    const byP = [...L.opts].sort((a, b) => b.p - a.p);
+    const fav = [...L.opts].sort((a, b) => b.f - a.f)[0];       // folkets favorit
+    const top = byP[0];
+    const over = fav.f - fav.p;                                   // överstreckning i procentenheter
+    info[i] = { L, top, fav, over, byP };
+    let start;
+    if (isF && L.hasOdds && over >= 15 && fav.p < 55 && byP.length === 3) {
+      // fäll kraftigt överstreckad favorit: spela de två andra tecknen
+      start = L.opts.filter(x => x.key !== fav.key).map(x => x.key); info[i].fall = true;
+    } else start = [top.key];
+    pick[i] = start;
+  });
+  // värdespikar: hög chans och spelvärde >= -2, ej överstreckad favorit
+  const spikCand = info.map((x, i) => ({ i, x })).filter(({ x }) => x.L.hasOdds && !x.fall && x.top.p >= spikP && (x.top.p - x.top.f) >= -2 && !(x.top.key === x.fav.key && x.over >= 8))
+    .sort((a, b) => (b.x.top.p + 2 * (b.x.top.p - b.x.top.f)) - (a.x.top.p + 2 * (a.x.top.p - a.x.top.f)));
+  const nSpik = isF ? Math.min(spikCand.length, Math.max(2, Math.round(legs.length / 3))) : Math.min(spikCand.length, 2);
+  const locked = new Set(spikCand.slice(0, nSpik).map(c => c.i));
+  const rows = () => pick.reduce((a, x) => a * x.length, 1);
+  // girig gardering: prioritera överstreckade favoriter och understreckade (positivt EV) alternativ
+  for (let guard = 0; guard < 200; guard++) {
+    let best = null;
+    info.forEach((x, i) => {
+      if (locked.has(i)) return;
+      const chosen = new Set(pick[i]);
+      const rest = x.L.opts.filter(o2 => !chosen.has(o2.key) && !(x.fall && o2.key === x.fav.key));
+      if (!rest.length) return;
+      if (!isF && pick[i].length >= 5) return;
+      const cand = rest.sort((a, b) => (b.p + Math.max(0, b.p - b.f)) - (a.p + Math.max(0, a.p - a.f)))[0];
+      const n = pick[i].length, newRows = rows() / n * (n + 1);
+      if (newRows > maxRows) return;
+      const miss = 100 - x.L.opts.filter(o2 => chosen.has(o2.key)).reduce((a, o2) => a + o2.p, 0);
+      const overBonus = (chosen.has(x.fav.key) && x.over > 0 && n <= 2) ? x.over / n : 0;
+      const ev = Math.max(0, cand.p - cand.f);
+      const score = (Math.min(cand.p, miss) + 1.5 * ev + overBonus) / Math.log((n + 1) / n);
+      if (cand.p < (isF ? 12 : 4) && ev < 3) return; // inga rena chansningar
+      if (!best || score > best.score) best = { i, key: cand.key, score };
+    });
+    if (!best) break;
+    pick[best.i].push(best.key);
+  }
+  legs.forEach((L, i) => { o.s[i] = pick[i].slice(); });
+  // förklaring
+  const prob = legs.reduce((a, L, i) => a * L.opts.filter(x => pick[i].includes(x.key)).reduce((s, x) => s + x.p, 0) / 100, 1);
+  const folk = legs.reduce((a, L, i) => a * L.opts.filter(x => pick[i].includes(x.key)).reduce((s, x) => s + x.f, 0) / 100, 1);
+  const spikar = [...locked].sort((a, b) => a - b).map(i => { const t = info[i].top; return `${legs[i].label}: ${t.name} (${Math.round(t.p)} % chans, ${Math.round(t.f)} % folket)`; });
+  const singlar = legs.map((L, i) => i).filter(i => !locked.has(i) && pick[i].length === 1).map(i => { const t = legs[i].opts.find(q => q.key === pick[i][0]); return `${legs[i].label}: ${t.name} – singel för att hålla budgeten (${Math.round(t.p)} % chans, ${Math.round(t.f)} % folket)`; });
+  const items = g.matcher || g.lopp;
+  const skrallar = items.map((it, i) => ({ it, i })).filter(({ it }) => it.skrall && it.skrall.basta).map(({ it, i }) => {
+    const b = it.skrall.basta, key = b.tecken ? '1X2'.indexOf(b.tecken) : b.nr, med = pick[i].includes(key);
+    return `${legs[i].label}: ${b.tecken ? b.tecken + ' (' + b.lag + ')' : 'nr ' + b.nr + ' ' + b.namn} · ${Math.round(b.chans)} % chans mot ${Math.round(b.streck)} % folket → ${med ? 'MED i kupongen' : 'inte med (budget/för låg chans)'}`;
+  });
+  const overs = info.map((x, i) => ({ x, i })).filter(({ x }) => x.L.hasOdds && x.over >= 8).sort((a, b) => b.x.over - a.x.over)
+    .map(({ x, i }) => `${legs[i].label}: ${x.fav.name} ${Math.round(x.fav.f)} % folket mot ${Math.round(x.fav.p)} % chans → ${x.fall ? 'fälls (spelar ' + pick[i].slice().sort((p1, p2) => p1 - p2).map(kk => '1X2'[kk]).join('') + ')' : (pick[i].includes(x.fav.key) && pick[i].length > 1 ? 'garderas (' + pick[i].length + ' val)' : (pick[i].length === 1 ? 'spelas ensam (budget)' : 'fälls'))}`);
+  const values = [];
+  info.forEach((x, i) => x.L.opts.forEach(q => { if (pick[i].includes(q.key) && q.key !== x.fav.key && q.p - q.f >= 3) values.push(`${legs[i].label}: ${q.name} (+${Math.round(q.p - q.f)})`); }));
+  S.expl = S.expl || {};
+  S.expl[o.id] = { spikar: spikar.concat(singlar), skrallar, overs, values: values.slice(0, 8), rows: rows(), cost: rows() * g.radpris, prob: prob * 100, folk: folk * 100, minKr, maxKr };
+  save('sel', S.sel); render();
+}
+function clearExpl() { const o = selFor(S.sg); if (o && S.expl) delete S.expl[o.id]; }
+function storvinstBox(id) {
+  const e = S.expl && S.expl[id]; if (!e) return '';
+  const idx = e.folk > 0 ? e.prob / e.folk : 0;
+  const li = arr => arr.length ? arr.map(x => `<div class="li"><span>${esc(x)}</span></div>`).join('') : '<div class="none small">Inga i den här omgången</div>';
+  return `<div class="card" style="border-color:rgba(255,196,0,.45)"><h3>🏆 Därför ser Storvinst-kupongen ut så här</h3>
+    <div class="muted small" style="margin:4px 0 8px">${e.rows.toLocaleString('sv-SE')} rader · ${kr(e.cost)} (budget ${e.minKr}–${e.maxKr} kr)</div>
+    <div class="xlbl">Spikar med bäst spelvärde</div><div class="list">${li(e.spikar)}</div>
+    <div class="xlbl">🎯 Skrällar – vilket lag/vilken häst</div><div class="list">${li(e.skrallar || [])}</div>
+    <div class="xlbl">Överstreckade favoriter som garderas/fälls</div><div class="list">${li(e.overs)}</div>
+    <div class="xlbl">Understreckade tecken/hästar som är med</div><div class="list">${li(e.values)}</div>
+    <div class="xlbl">Beräknad utdelningsprofil</div>
+    <div class="note">Chans att få alla rätt enligt oddsen: <b>${pct(e.prob)}</b> · andel av folkets rader systemet täcker: <b>${pct(e.folk)}</b> · värdeindex <b class="${idx >= 1 ? 'val-p' : 'val-n'}">${idx.toLocaleString('sv-SE', { maximumFractionDigits: 2 })}</b> (över 1 = du delar potten med färre än chansen motiverar).</div>
+    <div class="muted small">Högre utdelning om skrällarna går in, men lägre träffchans än Lilla/Mellan/Stora med samma pengar. Strecken ändras fram till spelstopp – bygg om nära spelstopp. Ingen garanti för vinst.</div></div>`;
 }
 
 /* ---------------- Render & events ---------------- */
@@ -266,7 +382,9 @@ document.addEventListener('click', e => {
   if (d.sort) { S.sortH = d.sort; return render(); }
   if (d.eg) { S.eg = d.eg; return render(); }
   if (d.sg) { S.sg = d.sg; return render(); }
-  if (d.preset) return preset(S.sg, d.preset);
+  if (d.storvinst) return storvinst(S.sg);
+  if (d.preset) { clearExpl(); return preset(S.sg, d.preset); }
+  if (d.clear || d.pick) clearExpl();
   if (d.clear) { const o = selFor(S.sg); o.s.forEach((_, i) => o.s[i] = []); save('sel', S.sel); return render(); }
   if (d.pick) { const [i, t] = d.pick.split(':').map(Number); const o = selFor(S.sg); const a = o.s[i]; const j = a.indexOf(t); j >= 0 ? a.splice(j, 1) : a.push(t); save('sel', S.sel); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
   if (b.id === 'copy') { const t = sysText(S.sg); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('System kopierat'), () => { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('System kopierat'); }); }
