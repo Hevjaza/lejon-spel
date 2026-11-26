@@ -1,0 +1,281 @@
+{
+ "_info": "Analysanteckningar (svenska + engelska källor). Nycklar: '<produkt>-<omgång>-<matchnr>' för fotboll, 'V75_<id>-<avd>' för trav. Uppdateras av Grok Bot-rutinen. Anteckningar visas bara om lagnamnen matchar omgången.",
+ "football": {
+  "stryktipset-4981-1": {
+   "match": "Ipswich – Aston Villa",
+   "sv": "Betbuilders-modellen 30-26-45, nära folket. Ingen tydlig spik.",
+   "en": "Football365 tippar X: Villa utan seger i sex matcher efter CL-förlusten mot Galatasaray. Onana och Ruggeri borta, Cash osäker (Sports Mole). Ipswich: Leif Davis osäker."
+  },
+  "stryktipset-4981-2": {
+   "match": "Man Utd – Brentford",
+   "sv": "Sportbladet: krisande United går inte att lita på. Betbuilders-modellen 53 % på 1.",
+   "en": "Goal.com och The Stats Zone: United långt ner i tabellen, Brentford i fin form efter 4-0 mot Everton."
+  },
+  "stryktipset-4981-3": {
+   "match": "Leeds – Coventry",
+   "sv": "Spelkanalen spikar 1. Betbuilders: krysset har värde (modellen 26 % mot folkets 15 %).",
+   "en": "Coventry saknar flera spelare, bl.a. Awoniyi och Woolfenden (Leeds United, FotMob). Squawka tror på 1-0."
+  },
+  "stryktipset-4981-4": {
+   "match": "Birmingham – Bolton",
+   "sv": "Stryktipsetdata: ettan något övertippad (folket 69 % mot oddsen 62 %).",
+   "en": "Engelska modeller ger Birmingham 59–69 %, troligast 2-0 eller 2-1 (Footy Stat Machine, Pundict, The Pundit)."
+  },
+  "stryktipset-4981-5": {
+   "match": "Derby – Watford",
+   "sv": "Sportbladet spikar Derby. Spelkanalen tippar 1.",
+   "en": null
+  },
+  "stryktipset-4981-6": {
+   "match": "Millwall – Burnley",
+   "sv": "Betbuilders-modellen 49-25-25, nära folket. Spelkanalen: 1 med 45 % säkerhet.",
+   "en": null
+  },
+  "stryktipset-4981-7": {
+   "match": "West Brom – Bristol City",
+   "sv": "Sportbladet jagar skräll: tvåan streckas lågt och ska med. Stryktipsetdata: ettan övertippad.",
+   "en": "Engelska modeller ger West Brom 53–59 % (Sports Mole m.fl.)."
+  },
+  "stryktipset-4981-8": {
+   "match": "QPR – Sheffield Utd",
+   "sv": "Sportbladet spikar QPR.",
+   "en": null
+  },
+  "stryktipset-4981-9": {
+   "match": "West Ham – Stoke",
+   "sv": "Sportbladet: mycket bra favoritspik, West Ham har skapat mest chanser i alla fyra matcher under Scott Parker. Betbuilders: veckans spik (modellen 64 %).",
+   "en": "Sports Mole och engelska modeller ger West Ham 56–61 %, troligast 2-0 eller 1-1."
+  },
+  "stryktipset-4981-10": {
+   "match": "Wrexham – Portsmouth",
+   "sv": "Ingen expertanalys hittad. Folket och oddsen ligger nära varandra.",
+   "en": null
+  },
+  "stryktipset-4981-11": {
+   "match": "Luton – Oxford",
+   "sv": "Sportbladet: vettig spik. Luton toppar formtabellen (7 vinster och 1 kryss på 8 matcher). Oxford saknar Dembele och Helik.",
+   "en": null
+  },
+  "stryktipset-4981-12": {
+   "match": "Sheffield W – Reading",
+   "sv": "Sportbladet: avslag på ettan, spela X2. Betbuilders: folkets fälla (modellen 38 % på 1).",
+   "en": null
+  },
+  "stryktipset-4981-13": {
+   "match": "Wycombe – Bradford",
+   "sv": "Sportbladet: värdespik på 1. Wareham 5 mål på 5 matcher, Bradford saknar Pointon och har 3 bortamål på 450 minuter.",
+   "en": null
+  },
+  "europatipset-2629-1": {
+   "match": "Arsenal – Man City",
+   "sv": "Spelkanalen: 1 (55 % säkerhet). Arsenal leder serien med sex poäng.",
+   "en": "Saka och Zubimendi borta, Raya stort frågetecken (Sports Mole, talkSPORT). City utan seger på fyra PL-matcher, Semenyo borta. RotoWire tippar 1-1."
+  },
+  "europatipset-2629-2": {
+   "match": "Sunderland – Tottenham",
+   "sv": "Spelkanalen: 2 (55 %). Stryktipsetdata: tvåan övertippad.",
+   "en": "Sunderland saknar Xhaka, Brobbey och Diarra. Spurs saknar Tel och Savio (The Standard, Forebet)."
+  },
+  "europatipset-2629-3": {
+   "match": "Brighton – Newcastle",
+   "sv": "Spelkanalen: 1 (65 %). Stryktipsetdata: ettan övertippad (74 % mot 62 %).",
+   "en": "Brighton utan skador, Newcastle saknar Joelinton (Lineup Builder, Sports Mole)."
+  },
+  "europatipset-2629-4": {
+   "match": "Crystal Palace – Hull",
+   "sv": "Spelkanalen: 1 (62 %) mot nykomlingen Hull.",
+   "en": "Hull slog Brighton förra omgången (Sports Mole)."
+  },
+  "europatipset-2629-5": {
+   "match": "Fulham – Bournemouth",
+   "sv": "Spelkanalen: kupongens öppnaste match, lutar 2 (45 %). Bournemouth har fem raka PL-segrar.",
+   "en": "Bournemouth saknar Juanlu Sánchez, Fulham reservmålvakten Lecomte (Lineup Builder)."
+  },
+  "europatipset-2629-6": {
+   "match": "Como – Juventus",
+   "sv": "Spelkanalen: 1 (50 %). Juventus saknar Yildiz och Kalulu, oro kring tränaren Spalletti.",
+   "en": null
+  },
+  "europatipset-2629-7": {
+   "match": "Real Sociedad – Sevilla",
+   "sv": "Stryktipsetdata: ettan kraftigt övertippad (67 % mot oddsen 45 %).",
+   "en": null
+  },
+  "europatipset-2629-8": {
+   "match": "Dortmund – Leverkusen",
+   "sv": "Stryktipsetdata: ettan kraftigt övertippad (72 % mot oddsen 46 %).",
+   "en": "Dortmund spelade 1-1 mot Arsenal i CL i tisdags (Sports Mole)."
+  },
+  "europatipset-2629-9": {
+   "match": "FC Köpenhamn – Midtjylland",
+   "sv": "Ingen expertanalys hittad.",
+   "en": null
+  },
+  "europatipset-2629-10": {
+   "match": "Västerås – Hammarby",
+   "sv": "Spelkanalen: spik 2 (78 %). Sista omgången, Hammarby tar guldet med vinst (hammarby-if.se).",
+   "en": null
+  },
+  "europatipset-2629-11": {
+   "match": "IFK Göteborg – Sirius",
+   "sv": "Sirius kan bara ta guldet om Hammarby tappar poäng.",
+   "en": null
+  },
+  "europatipset-2629-12": {
+   "match": "Djurgården – Häcken",
+   "sv": "Ingen expertanalys hittad.",
+   "en": null
+  },
+  "europatipset-2629-13": {
+   "match": "Degerfors – Örgryte",
+   "sv": "Spelkanalen: 1 (55 %).",
+   "en": null
+  }
+ },
+ "trav": {
+  "V75_2026-11-28_5_5-1": {
+   "sv": "Spik 5 Fine Manners hos Sportbladet, SverigeTravet, Hurbra och Travcash. Första motbud 11 Iaintnoquitter (fyra segrar på fem senaste) men från spår 11.",
+   "en": null
+  },
+  "V75_2026-11-28_5_5-2": {
+   "sv": "Öppet lopp. Hurbra rankar 3-4-7-1. SverigeTravet: 3 Hola Que Tal, dubblar med 4 Capo.",
+   "en": null
+  },
+  "V75_2026-11-28_5_5-3": {
+   "sv": "Spik 3 Double Deceiver hos Hurbra och SverigeTravet. Hot: 2 Stens Rubin, 6 Makalu Doc och 10 Diva Ek.",
+   "en": null
+  },
+  "V75_2026-11-28_5_5-4": {
+   "sv": "Omgångens svåraste. Nr 7–15 har 20 meters tillägg. Hurbra rankar 6-11-2-14, Sportbladet kallar 6 Haute Couture ett måstestreck. 13 Anna K.J. är struken.",
+   "en": null
+  },
+  "V75_2026-11-28_5_5-5": {
+   "sv": "SverigeTravet och Sportbladet gillar 5 Tangelo Lane (tre raka segrar). Främsta gardering: 6 Justice for All.",
+   "en": null
+  },
+  "V75_2026-11-28_5_5-6": {
+   "sv": "Sportbladet spikar 7 Barn Bank: tre starter i år, tre segrar.",
+   "en": null
+  },
+  "V75_2026-11-28_5_5-7": {
+   "sv": "Öppet: fyra hästar har 12–20 % streck. Sportbladet varnar för 4 Joker Ima som kliver ned i klass. 12 Cabello är struken.",
+   "en": null
+  }
+ },
+ "links": {
+  "sv": [
+   {
+    "title": "Stryktipset & Europatipset – streck och odds",
+    "site": "Svenska Spel (live-data 26 nov 15:34)",
+    "href": "https://spela.svenskaspel.se/stryktipset"
+   },
+   {
+    "title": "Stryktipset 28/11: Expertens guldspikar",
+    "site": "Sportbladet",
+    "href": "https://www.aftonbladet.se/sportbladet/speltips/a/8PmeP2/stryktipset-28-11-expertens-guldspikar-till-jackpotten"
+   },
+   {
+    "title": "Stryktipset 28/11: Krisande United",
+    "site": "Sportbladet",
+    "href": "https://www.aftonbladet.se/sportbladet/speltips/a/kMJ2ya/stryktipset-28-11-krisande-united-gar-inte-att-lita-pa-just-nu"
+   },
+   {
+    "title": "Stryktipset v.48 – modell mot folket",
+    "site": "Betbuilders",
+    "href": "https://www.betbuilders.ai/stryktipset"
+   },
+   {
+    "title": "Stryktipset & Europatipset – folket mot oddsen",
+    "site": "Stryktipsetdata.se",
+    "href": "https://stryktipsetdata.se/stryktipset/tips"
+   },
+   {
+    "title": "Europatipset 29/11 – spik på Hammarby",
+    "site": "Spelkanalen",
+    "href": "https://spelkanalen.se/speltips/europatipset-omgang-2629"
+   },
+   {
+    "title": "V75 och V86 – startlistor, streck och odds",
+    "site": "ATG (live-data 26 nov)",
+    "href": "https://www.atg.se/spel/V75"
+   },
+   {
+    "title": "V75-tips Solvalla 28 november",
+    "site": "Sportbladet Trav365",
+    "href": "https://www.aftonbladet.se/sportbladet/trav365/a/LoAE1R/v75-tips-lordag-28-november-pa-solvalla-analys-spikar-skrallar-och-system-jackpott-40-miljoner"
+   },
+   {
+    "title": "V75 tips lördag 28 november",
+    "site": "SverigeTravet",
+    "href": "https://www.sverigetravet.se/v75-tips/v75-tips-lordag-28-november-2026"
+   },
+   {
+    "title": "V75 Solvalla – spikar och system",
+    "site": "Hurbra",
+    "href": "https://hurbra.se/v75-solvalla-28-november-2026/"
+   },
+   {
+    "title": "Tre tippar V75 Solvalla 28/11",
+    "site": "Travcash",
+    "href": "https://travcash.se/v75-tips/tre-tippar-v75-solvalla-28-11/"
+   }
+  ],
+  "en": [
+   {
+    "title": "Arsenal injury list vs Man City",
+    "site": "Sports Mole",
+    "href": "https://www.sportsmole.co.uk/football/arsenal/injury-news/injuries-and-suspensions/raya-saka-zubimendi-latest-arsenal-injury-suspension-list-vs-man-city_609872.html"
+   },
+   {
+    "title": "Arsenal vs Man City prediction & team news",
+    "site": "RotoWire",
+    "href": "https://www.rotowire.com/soccer/article/arsenal-vs-manchester-city-prediction-predicted-lineups-team-news-148253"
+   },
+   {
+    "title": "Where to watch Arsenal vs Man City + team news",
+    "site": "talkSPORT",
+    "href": "https://talksport.com/football/4732915/where-to-watch-arsenal-vs-man-city-time-score-tv-channel/"
+   },
+   {
+    "title": "Ipswich vs Aston Villa prediction",
+    "site": "Football365",
+    "href": "https://www.football365.com/match-preview/ipswich-vs-aston-villa-prediction-enciso-to-shine-as-team-news-revealed"
+   },
+   {
+    "title": "Aston Villa injury news for Ipswich",
+    "site": "Sports Mole",
+    "href": "https://www.sportsmole.co.uk/football/aston-villa/injury-news/injuries-and-suspensions/onana-cash-ruggeri-latest-aston-villa-injury-list-for-ipswich-clash_609808.html"
+   },
+   {
+    "title": "Man Utd vs Brentford preview",
+    "site": "Goal.com",
+    "href": "https://www.goal.com/en/news/manchester-united-brentford-premier-league-preview/blt769b504b81f77619"
+   },
+   {
+    "title": "Leeds vs Coventry team news",
+    "site": "Leeds United",
+    "href": "https://www.leedsunited.com/en/news/the-latest-team-news-and-daniel-farkes-coventry-expectations"
+   },
+   {
+    "title": "West Ham vs Stoke preview",
+    "site": "Sports Mole",
+    "href": "https://www.sportsmole.co.uk/football/west-ham-united/preview/west-ham-vs-stoke-prediction-team-news-lineups_609898.html"
+   },
+   {
+    "title": "West Brom vs Bristol City preview",
+    "site": "Sports Mole",
+    "href": "https://www.sportsmole.co.uk/football/west-brom-albion/preview/west-brom-vs-bristol-city-prediction-team-news-lineups_609910.html"
+   },
+   {
+    "title": "Tottenham XI vs Sunderland",
+    "site": "The Standard",
+    "href": "https://www.standard.co.uk/sport/football/tottenham-xi-vs-sunderland-confirmed-team-news-predicted-lineup-injury-latest-2026-premier-league-b1306506.html"
+   },
+   {
+    "title": "Premier League predicted lineups GW12",
+    "site": "Lineup Builder",
+    "href": "https://www.lineup-builder.co.uk/premier-league-predicted-lineups"
+   }
+  ]
+ }
+}
