@@ -24,7 +24,17 @@ TRAV_PRICE = {"V75": 0.50, "V86": 0.25}
 FOOT_PRICE = 1.0
 
 
+_CACHE = {}
+
+
 def get(url, tries=3):
+    if url in _CACHE:
+        return _CACHE[url]
+    _CACHE[url] = _get(url, tries)
+    return _CACHE[url]
+
+
+def _get(url, tries=3):
     for i in range(tries):
         try:
             with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=25) as r:
@@ -79,43 +89,71 @@ def outcome_probs(lh, la, n=10):
     return h, d, a
 
 
-def fit_lambdas(p1, px, p2):
+def fit_lambdas(p1, px, p2, prior_total=None, max_l=4.0):
     """Minsta kvadrat-anpassning av hemma/borta-målförväntan till 1X2-sannolikheterna."""
     best = None
-    for i in range(10, 400, 5):          # grovt rutnät 0.10–4.00
-        for j in range(10, 400, 5):
+    pen = lambda lh, la: 0.0005 * (lh + la - prior_total) ** 2 if prior_total else 0.0
+    top = int(max_l * 100)
+    for i in range(10, top, 5):          # grovt rutnät 0.10–max_l
+        for j in range(10, top, 5):
             lh, la = i / 100, j / 100
-            h, d, a = outcome_probs(lh, la, 9)
-            e = (h - p1) ** 2 + (d - px) ** 2 + (a - p2) ** 2
+            h, d, a = outcome_probs(lh, la, 12)
+            e = (h - p1) ** 2 + (d - px) ** 2 + (a - p2) ** 2 + pen(lh, la)
             if best is None or e < best[0]:
                 best = (e, lh, la)
     _, bh, ba = best
     for i in range(-5, 6):               # finjustering ±0.05
         for j in range(-5, 6):
             lh, la = max(0.05, bh + i / 100), max(0.05, ba + j / 100)
-            h, d, a = outcome_probs(lh, la, 10)
-            e = (h - p1) ** 2 + (d - px) ** 2 + (a - p2) ** 2
+            h, d, a = outcome_probs(lh, la, 14)
+            e = (h - p1) ** 2 + (d - px) ** 2 + (a - p2) ** 2 + pen(lh, la)
             if e < best[0]:
                 best = (e, lh, la)
     return best[1], best[2]
 
 
-def correct_scores(p1, px, p2, top=3):
-    lh, la = fit_lambdas(p1, px, p2)
-    grid = [(pois(i, lh) * pois(j, la), i, j) for i in range(8) for j in range(8)]
+def correct_scores(p1, px, p2, top=3, sport="fotboll"):
+    if sport == "hockey":   # ordinarie tid, ca 5,8 mål/match som utgångsläge
+        lh, la = fit_lambdas(p1, px, p2, prior_total=5.8, max_l=7.0)
+    else:
+        lh, la = fit_lambdas(p1, px, p2)
+    grid = [(pois(i, lh) * pois(j, la), i, j) for i in range(12) for j in range(12)]
     grid.sort(reverse=True)
     return {
-        "modell": "Modell från odds (Poisson anpassad till 1X2-oddsen)",
+        "modell": "Modell från odds (Poisson anpassad till 1X2-oddsen" + (", ordinarie tid, utgångsläge ~5,8 mål)" if sport == "hockey" else ")"),
         "xgHemma": round(lh, 2), "xgBorta": round(la, 2),
         "topp": [{"res": f"{i}–{j}", "p": round(p * 100, 1)} for p, i, j in grid[:top]],
     }
 
 
 # ---------------- Fotboll ----------------
-def football(product, notes):
-    data = get(SS.format(p=product))
+def tname(p):
+    p = p or {}
+    n = (p.get("name") or "").strip()
+    med = (p.get("mediumName") or "").strip()
+    if n and len(n) <= 16:
+        return n
+    truncated = med and n.startswith(med) and len(med) < len(n) and n[len(med)] != " "
+    if med and not truncated:
+        return med
+    return n.split()[0] if n else (med or None)
+
+
+ODDS_BY_MATCH = {}   # matchId -> (odds-baserad exakt-modell, källa) för Bomben
+
+def football(product, notes, sport="fotboll", endpoint=None, product_id=None):
+    data = get(SS.format(p=endpoint or product))
     t = now()
-    draws = [d for d in data.get("draws", []) if parse(d["regCloseTime"]) > t]
+    draws = [d for d in data.get("draws", []) if parse(d["regCloseTime"]) > t
+             and (product_id is None or d.get("productId") == product_id)]
+    # fyll odds-uppslag för Bomben från alla öppna omgångar i produkten
+    for dd in data.get("draws", []):
+        for ev in dd.get("drawEvents", []):
+            mid = (ev.get("match") or {}).get("matchId")
+            o = ev.get("odds") or {}
+            od = [num(o.get("one")), num(o.get("x")), num(o.get("two"))]
+            if mid and all(od) and mid not in ODDS_BY_MATCH and ev.get("participantType") != "Player":
+                ODDS_BY_MATCH[mid] = (od, f"{dd.get('productName', product)} {dd.get('drawNumber')}", sport)
     draws.sort(key=lambda d: parse(d["regCloseTime"]))
     open_ = [d for d in draws if d.get("drawState") == "Open"]
     if not (open_ or draws):
@@ -126,10 +164,6 @@ def football(product, notes):
     for ev in d.get("drawEvents", []):
         m = ev.get("match") or {}
         parts = {p["type"]: p for p in m.get("participants", [])}
-        def tname(p):
-            p = p or {}
-            n = p.get("name") or ""
-            return n if n and len(n) <= 16 else (p.get("mediumName") or n or None)
         home, away = tname(parts.get("home")), tname(parts.get("away"))
         if not home:
             home, _, away = ev.get("eventDescription", "").partition(" - ")
@@ -138,11 +172,12 @@ def football(product, notes):
         sf = ev.get("svenskaFolket") or {}
         streck = [num(sf.get("one")), num(sf.get("x")), num(sf.get("two"))]
         row = {
-            "nr": ev["eventNumber"], "hemma": home, "borta": away,
+            "nr": ev["eventNumber"], "matchId": m.get("matchId"), "hemma": home, "borta": away,
             "liga": (m.get("league") or {}).get("name"),
             "land": ((m.get("league") or {}).get("country") or {}).get("name"),
             "start": m.get("matchStart"), "status": m.get("status"),
             "struken": bool(ev.get("cancelled")),
+            "duell": ev.get("participantType") == "Player",
             "odds": odds if all(odds) else None, "streck": streck if all(x is not None for x in streck) else None,
         }
         if row["odds"]:
@@ -151,7 +186,7 @@ def football(product, notes):
             prob = [v / s * 100 for v in inv]
             row["vinstchans"] = [round(p, 1) for p in prob]
             row["marginal"] = round((s - 1) * 100, 1)
-            row["exakt"] = correct_scores(*(p / 100 for p in prob))
+            row["exakt"] = correct_scores(*(p / 100 for p in prob), sport=sport)
             if row["streck"]:
                 row["spelvarde"] = [round(prob[i] - streck[i], 1) for i in range(3)]
                 fav = max(range(3), key=lambda i: streck[i])
@@ -166,8 +201,61 @@ def football(product, notes):
         "spelstopp": d["regCloseTime"], "status": d.get("drawState"),
         "omsattning": num(d.get("currentNetSale")), "radpris": FOOT_PRICE,
         "streckUppdaterat": next((ev.get("svenskaFolket", {}) or {}).get("date") for ev in d.get("drawEvents", []) if ev.get("svenskaFolket")),
-        "matcher": matcher,
+        "sport": sport, "matcher": matcher,
     }
+
+
+# ---------------- Bomben ----------------
+def bomben(max_draws=6):
+    data = get(SS.format(p="bomben"))
+    t = now()
+    draws = sorted([d for d in data.get("draws", []) if d.get("drawState") == "Open" and parse(d["regCloseTime"]) > t],
+                   key=lambda d: parse(d["regCloseTime"]))[:max_draws]
+    if not draws:
+        return {"id": "bomben", "namn": "Bomben", "status": "ingen", "omgangar": [],
+                "meddelande": "Ingen öppen Bomben-omgång just nu."}
+    out = []
+    for d in draws:
+        sport = "hockey" if (d.get("sport") or {}).get("id") == 7 else ("fotboll" if (d.get("sport") or {}).get("id") == 1 else "annan")
+        matcher = []
+        for ev in d.get("events", []):
+            m = ev.get("match") or {}
+            parts = {p["type"]: p for p in m.get("participants", [])}
+            folk_h, folk_a = [], []
+            for r in ev.get("svenskaFolket") or []:
+                lbl = r["score"].split("-")[0]
+                lbl = "10+" if lbl == "F" else lbl
+                folk_h.append({"mal": lbl, "p": num(r.get("home")) or 0})
+                folk_a.append({"mal": lbl, "p": num(r.get("away")) or 0})
+            folk_top = None
+            if folk_h and sum(x["p"] for x in folk_h) > 0:
+                comb = [(h["p"] * a["p"] / 100, h["mal"], a["mal"]) for h in folk_h for a in folk_a]
+                comb.sort(reverse=True)
+                folk_top = [{"res": f"{h}–{a}", "p": round(p, 1)} for p, h, a in comb[:3]]
+            exakt, kalla = None, None
+            hit = ODDS_BY_MATCH.get(m.get("matchId"))
+            if hit and sport in ("fotboll", "hockey"):
+                od, kalla, sp = hit
+                inv = [1 / x for x in od]
+                s_ = sum(inv)
+                exakt = correct_scores(*(v / s_ for v in inv), sport=sport)
+                exakt["odds"] = od
+                exakt["vinstchans"] = [round(v / s_ * 100, 1) for v in inv]
+            matcher.append({
+                "nr": ev.get("eventNumber"), "hemma": tname(parts.get("home")), "borta": tname(parts.get("away")),
+                "liga": (m.get("league") or {}).get("name"), "start": m.get("matchStart"),
+                "folketHemma": [x for x in folk_h if x["p"] > 0], "folketBorta": [x for x in folk_a if x["p"] > 0],
+                "folketTopp": folk_top, "exakt": exakt, "oddsKalla": kalla,
+            })
+        out.append({
+            "omgang": d["drawNumber"], "namn": d.get("description"), "tema": d.get("drawComment"),
+            "sport": (d.get("sport") or {}).get("name"), "spelstopp": d["regCloseTime"],
+            "omsattning": num(d.get("currentNetSales")), "matcher": matcher,
+        })
+    return {"id": "bomben", "namn": "Bomben", "status": "Open", "spelstopp": out[0]["spelstopp"],
+            "omgang": out[0]["omgang"], "streckUppdaterat": None, "omgangar": out,
+            "info": "Bomben: tippa exakt antal mål för varje lag. Svenska Spel visar inga odds för Bomben – "
+                    "här visas folkets streck per lag och, när matchen finns med odds på Stryk/Europa/Topptipset/Powerplay, en modell från de oddsen."}
 
 
 # ---------------- Trav ----------------
@@ -292,13 +380,16 @@ def main():
     res, errors = {}, []
     for key, fn in (("stryktipset", lambda: football("stryktipset", notes)),
                     ("europatipset", lambda: football("europatipset", notes)),
+                    ("topptipset", lambda: football("topptipset", notes, endpoint="topptipsetfamily", product_id=25)),
+                    ("powerplay", lambda: football("powerplay", notes, "hockey")),
+                    ("bomben", lambda: bomben()),
                     ("V75", lambda: trav("V75", notes, with_form)),
                     ("V86", lambda: trav("V86", notes, with_form))):
         try:
             res[key] = fn()
         except Exception as e:
             errors.append(f"{key}: {e}")
-            prev = (old.get("fotboll", {}) | old.get("trav", {})).get(key)
+            prev = (old.get("fotboll", {}) | old.get("hockey", {}) | old.get("trav", {}) | {"bomben": old.get("bomben")}).get(key)
             # behåll bara gammal data om dess spelstopp inte har passerat
             if prev and prev.get("spelstopp") and parse(prev["spelstopp"]) > now():
                 res[key] = prev
@@ -306,8 +397,10 @@ def main():
                 res[key] = {"id": key, "namn": key, "status": "fel", "meddelande": "Kunde inte hämta just nu – försöker igen vid nästa uppdatering."}
     data = {
         "uppdaterad": iso(now()),
-        "kallor": {"fotboll": "Svenska Spel (publikt API)", "trav": "ATG (publikt API)"},
-        "fotboll": {"stryktipset": res["stryktipset"], "europatipset": res["europatipset"]},
+        "kallor": {"fotboll": "Svenska Spel (publikt API)", "hockey": "Svenska Spel (publikt API)", "trav": "ATG (publikt API)"},
+        "fotboll": {"stryktipset": res["stryktipset"], "europatipset": res["europatipset"], "topptipset": res["topptipset"]},
+        "hockey": {"powerplay": res["powerplay"]},
+        "bomben": res["bomben"],
         "trav": {"V75": res["V75"], "V86": res["V86"]},
         "lankar": notes.get("links", {}),
         "fel": errors,

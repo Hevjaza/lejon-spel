@@ -74,3 +74,5 @@ summary:after{content:" ▾"}
 .xrow>div:first-child,.xh>span:first-child{text-align:left}.xrow .num{display:inline-grid;width:24px;height:24px;font-size:12px;margin-right:4px}
 .xo{font-size:22px;font-weight:800}.xp{font-size:15px;font-weight:700;color:var(--acc)}.xs{font-size:14px;color:var(--blu);font-weight:700}
 .xrow.first .xo{color:var(--acc)}
+.seg button{padding:8px 6px}
+.seg{scrollbar-width:none}.seg::-webkit-scrollbar{display:none}.seg button{flex:1 0 auto}

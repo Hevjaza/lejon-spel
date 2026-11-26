@@ -16,7 +16,9 @@ function left(iso) {
 }
 const passed = g => g && g.spelstopp && new Date(g.spelstopp) < Date.now();
 function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), 1800); }
-const games = () => S.data ? { stryktipset: S.data.fotboll.stryktipset, europatipset: S.data.fotboll.europatipset, V75: S.data.trav.V75, V86: S.data.trav.V86 } : {};
+const games = () => S.data ? { stryktipset: S.data.fotboll.stryktipset, europatipset: S.data.fotboll.europatipset, topptipset: S.data.fotboll.topptipset, powerplay: (S.data.hockey || {}).powerplay, V75: S.data.trav.V75, V86: S.data.trav.V86 } : {};
+const FOOT = ['stryktipset', 'europatipset', 'topptipset', 'powerplay'];
+const SPORTNAMN = { stryktipset: 'Stryktipset', europatipset: 'Europatipset', topptipset: 'Topptipset', powerplay: 'Powerplay 🏒', bomben: 'Bomben 💣' };
 const lvl = n => `<span class="chip lv-${esc(n)}">${esc(n)} skrällchans</span>`;
 const valCls = v => v == null ? '' : v >= 0 ? 'val-p' : 'val-n';
 
@@ -46,14 +48,14 @@ function gameHead(g) {
 function vOversikt() {
   const G = games();
   const tiles = Object.entries(G).map(([k, g]) => {
-    if (!g || !g.omgang) return `<div class="card"><div class="row"><h3>${esc(k[0].toUpperCase() + k.slice(1))}</h3></div><div class="muted">${esc(g && g.meddelande || '')}</div></div>`;
+    if (!g || !g.omgang) return `<div class="card"><div class="row"><h3>${esc(SPORTNAMN[k] || k)}</h3></div><div class="muted">${esc(g && g.meddelande || '')}</div></div>`;
     const isF = !!g.matcher;
     const sub = isF ? `Omgång ${g.omgang} · ${g.matcher.length} matcher` : `${(g.banor || []).join(' & ')} · ${g.lopp.length} avd`;
-    return `<div class="card hero" data-go="${isF ? 'fotboll' : 'trav'}" data-g="${k}"><div class="row"><h3>${esc(g.namn)}</h3><span class="chip">${esc(left(g.spelstopp))}</span></div>
+    return `<div class="card hero" data-go="${isF ? 'fotboll' : 'trav'}" data-g="${k}"><div class="row"><h3>${esc(SPORTNAMN[k] || g.namn)}</h3><span class="chip">${esc(left(g.spelstopp))}</span></div>
       <div class="muted">${esc(sub)}</div><div class="muted">Spelstopp ${esc(fmt(g.spelstopp))}${g.omsattning ? ' · Omsättning ' + Math.round(g.omsattning).toLocaleString('sv-SE') + ' kr' : ''}</div></div>`;
   }).join('');
   const outs = [];
-  for (const k of ['stryktipset', 'europatipset']) {
+  for (const k of FOOT) {
     const g = G[k]; if (!g || !g.matcher) continue;
     g.matcher.forEach(m => { if (m.vinstchans) m.vinstchans.forEach((p, i) => outs.push({ g: g.namn, m, t: '1X2'[i], p, v: m.spelvarde ? m.spelvarde[i] : null, f: m.streck ? m.streck[i] : null })); });
   }
@@ -63,16 +65,18 @@ function vOversikt() {
   for (const k of ['V75', 'V86']) { const g = G[k]; if (!g || !g.lopp) continue; g.lopp.forEach(l => l.starter.forEach(h => { if (!h.struken && h.spelvarde != null) horses.push({ g: k, l, h }); })); }
   const hv = horses.sort((a, b) => b.h.spelvarde - a.h.spelvarde).slice(0, 5);
   const skr = [];
-  for (const k of ['stryktipset', 'europatipset']) { const g = G[k]; g && g.matcher && g.matcher.forEach(m => m.skrall && m.skrall.niva === 'Hög' && skr.push(`<div class="li"><span>${esc(g.namn)} ${m.nr}. ${esc(m.hemma)} – ${esc(m.borta)}</span><span class="chip lv-Hög">${pct(m.skrall.procent)}</span></div>`)); }
+  for (const k of FOOT) { const g = G[k]; g && g.matcher && g.matcher.forEach(m => m.skrall && m.skrall.niva === 'Hög' && skr.push(`<div class="li"><span>${esc(g.namn)} ${m.nr}. ${esc(m.hemma)} – ${esc(m.borta)}</span><span class="chip lv-Hög">${pct(m.skrall.procent)}</span></div>`)); }
   for (const k of ['V75', 'V86']) { const g = G[k]; g && g.lopp && g.lopp.forEach(l => l.skrall && l.skrall.niva === 'Hög' && skr.push(`<div class="li"><span>${k} avd ${l.avd} (${esc(l.bana)})</span><span class="chip lv-Hög">${pct(l.skrall.procent)}</span></div>`)); }
   const cs = [];
-  for (const k of ['stryktipset', 'europatipset']) { const g = G[k]; g && g.matcher && g.matcher.forEach(m => m.exakt && cs.push({ g: g.namn, m, t: m.exakt.topp[0] })); }
+  for (const k of FOOT) { const g = G[k]; g && g.matcher && g.matcher.forEach(m => m.exakt && cs.push({ g: g.namn, m, t: m.exakt.topp[0] })); }
   cs.sort((a, b) => b.t.p - a.t.p);
   const li = (l, r, cls) => `<div class="li"><span>${l}</span><span class="${cls || ''}"><b>${r}</b></span></div>`;
   const L = S.data.lankar || {};
   const links = (arr) => (arr || []).map(x => `<a href="${esc(x.href)}" target="_blank" rel="noopener">${esc(x.title)}<span>${esc(x.site)}</span></a>`).join('');
+  const B = S.data.bomben;
+  const btile = B && B.omgangar && B.omgangar.length ? `<div class="card hero" data-go="fotboll" data-g="bomben"><div class="row"><h3>Bomben 💣</h3><span class="chip">${esc(left(B.omgangar[0].spelstopp))}</span></div><div class="muted">${B.omgangar.length} öppna omgångar · nästa: ${esc(B.omgangar[0].tema)}</div><div class="muted">Spelstopp ${esc(fmt(B.omgangar[0].spelstopp))}</div></div>` : '';
   return `<h2>Översikt</h2><p class="lead">Nästa öppna omgångar hämtas automatiskt från Svenska Spel och ATG – spelade omgångar tas bort.</p>
-  <div class="cols">${tiles}</div>
+  <div class="cols">${tiles}${btile}</div>
   <div class="cols" style="margin-top:12px">
   <div class="card"><h3>Starkaste favoriter</h3><div class="muted">Högst vinstchans enligt oddsen</div><div class="list">${favs.map(o => li(`${esc(o.g)} ${o.m.nr}. ${esc(o.m.hemma)} – ${esc(o.m.borta)} <b>${o.t}</b>`, pct(o.p))).join('') || '<div class="none">Inga odds än</div>'}</div></div>
   <div class="card"><h3>Bäst spelvärde – fotboll</h3><div class="muted">Vinstchans minus folkets streck</div><div class="list">${vals.map(o => li(`${esc(o.g)} ${o.m.nr}. ${esc(o.m.hemma)} – ${esc(o.m.borta)} <b>${o.t}</b> <span class="muted">(${pct(o.p)} mot ${pct(o.f)})</span>`, sgn(o.v), 'val-p')).join('') || '<div class="none">Inget tydligt spelvärde just nu</div>'}</div></div>
@@ -84,30 +88,50 @@ function vOversikt() {
   <p class="muted" style="margin:14px 4px">Vinstchans = oddsen omräknade till procent med spelbolagets marginal borttagen. Spelvärde = vinstchans minus andel av folket som streckat. Exakt resultat är en statistisk modell, inte en garanti.</p>`;
 }
 
+
+/* ---------------- Bomben ---------------- */
+function bombenBody(exaktFokus) {
+  const b = S.data.bomben;
+  if (!b || !b.omgangar || !b.omgangar.length) return `<div class="warn">${esc(b && b.meddelande || 'Ingen öppen Bomben-omgång just nu.')}</div>`;
+  const dist = (arr) => (arr || []).slice().sort((x, y) => y.p - x.p).slice(0, 3).map(x => `<span class="chip">${esc(x.mal)} mål · ${pct(x.p)}</span>`).join(' ');
+  return `<div class="warn">${esc(b.info)}</div>` + b.omgangar.map(o => `<div class="xlbl" style="font-size:13px;color:var(--txt)">${esc(o.namn)} · ${esc(o.tema)} (${esc(o.sport)}) · spelstopp ${esc(fmt(o.spelstopp))} · ${esc(left(o.spelstopp))}</div>` +
+    o.matcher.map(m => `<div class="card"><h3>${m.nr}. ${esc(m.hemma)} – ${esc(m.borta)}</h3><div class="muted">${esc(m.liga || '')} · ${esc(fmt(m.start))}</div>
+      ${m.exakt ? `<div class="xlbl">Exakt resultat – modell från odds</div><div class="xcs">${m.exakt.topp.map((t, i) => `<div class="xpill ${i === 0 ? 'gold' : ''}"><div class="r">${t.res}</div><div class="p">${pct(t.p)}</div></div>`).join('')}</div>
+        <div class="muted small" style="margin-top:6px">Odds ${m.exakt.odds.map(x => x.toLocaleString('sv-SE', { minimumFractionDigits: 2 })).join(' / ')} (${esc(m.oddsKalla)}) · xG ${m.exakt.xgHemma.toLocaleString('sv-SE')}–${m.exakt.xgBorta.toLocaleString('sv-SE')}${m.exakt.modell.includes('ordinarie') ? ' · ordinarie tid' : ''}</div>`
+        : `<div class="muted small" style="margin-top:8px">Matchen finns inte med odds på Stryk/Europa/Topptipset/Powerplay just nu – därför ingen oddsmodell (vi gissar inte).</div>`}
+      ${m.folketTopp ? `<div class="xlbl">Folkets mest spelade resultat</div><div class="cs" style="margin-top:0">${m.folketTopp.map(t => `<span class="pill" style="color:var(--blu);border-color:rgba(90,169,255,.3);background:rgba(90,169,255,.1)">${t.res} (${pct(t.p)})</span>`).join('')}</div>
+        <div class="muted small" style="margin-top:6px">${esc(m.hemma)}: ${dist(m.folketHemma)}</div><div class="muted small" style="margin-top:4px">${esc(m.borta)}: ${dist(m.folketBorta)}</div>
+        <div class="muted small" style="margin-top:4px">Beräknat från folkets streck per lag (Svenska Spel).</div>` : '<div class="muted small">Inga streck än.</div>'}
+      </div>`).join('')).join('');
+}
+function vBomben(seg) { const b = S.data.bomben || {}; return `<h2>Bomben 💣</h2><p class="lead">Öppna Bomben-omgångar (${(b.omgangar || []).length} st) – tippa exakt antal mål per lag.</p>${seg}${bombenBody()}`; }
+
 /* ---------------- Fotboll ---------------- */
 function matchCard(m) {
   if (m.struken) return `<div class="card"><h3>${m.nr}. ${esc(m.hemma)} – ${esc(m.borta)}</h3><div class="muted">Matchen är struken – lottas.</div></div>`;
+  const duell = m.duell ? `<div class="warn" style="margin:10px 0 0">Spelarduell (Head to Head): 1 = ${esc(m.hemma)}, X = lika, 2 = ${esc(m.borta)}. Svenska Spel visar inga odds för duellen – bara folkets streck. Se Svenska Spels regler för vad som räknas.</div>` : '';
   const oc = [0, 1, 2].map(i => `<div class="oc"><div class="s">${'1X2'[i]}</div><div class="p">${pct(m.vinstchans && m.vinstchans[i])}</div>
     <div class="muted small">odds ${m.odds ? m.odds[i].toLocaleString('sv-SE') : '–'}</div>
     <div class="bar"><i class="o" style="width:${m.vinstchans ? m.vinstchans[i] : 0}%"></i></div>
     <div class="bar"><i class="f" style="width:${m.streck ? m.streck[i] : 0}%"></i></div>
     <div class="muted small">folket ${pct(m.streck && m.streck[i])}</div>
     <div class="small ${valCls(m.spelvarde && m.spelvarde[i])}"><b>${m.spelvarde ? sgn(m.spelvarde[i]) : '–'}</b> värde</div></div>`).join('');
-  const cs = m.exakt ? `<div class="cs"><span class="muted small">Exakt resultat:</span>${m.exakt.topp.map(t => `<span class="pill">${t.res} (${Math.round(t.p)}%)</span>`).join('')}</div><div class="muted small" style="margin-top:4px">Modell från odds · förväntade mål ${m.exakt.xgHemma.toLocaleString('sv-SE')}–${m.exakt.xgBorta.toLocaleString('sv-SE')}</div>` : '';
+  const cs = m.exakt ? `<div class="cs"><span class="muted small">Exakt resultat:</span>${m.exakt.topp.map(t => `<span class="pill">${t.res} (${Math.round(t.p)}%)</span>`).join('')}</div><div class="muted small" style="margin-top:4px">Modell från odds${m.exakt.modell.includes('ordinarie') ? ' (ordinarie tid)' : ''} · förväntade mål ${m.exakt.xgHemma.toLocaleString('sv-SE')}–${m.exakt.xgBorta.toLocaleString('sv-SE')}</div>` : '';
   const a = m.analys || {};
   return `<div class="card"><div class="row"><h3>${m.nr}. ${esc(m.hemma)} – ${esc(m.borta)}</h3>${m.skrall ? lvl(m.skrall.niva) : ''}</div>
    <div class="muted">${esc(m.liga || '')}${m.land ? ' · ' + esc(m.land) : ''} · ${esc(fmt(m.start))}</div>
-   <div class="grid3">${oc}</div>${cs}
+   ${m.duell ? '<span class="chip">Spelarduell</span>' : ''}<div class="grid3">${oc}</div>${duell}${cs}
    ${m.skrall ? `<div class="muted small" style="margin-top:8px">Folkets favorit <b>${m.skrall.folketsFavorit}</b> förlorar enligt oddsen i ${pct(m.skrall.procent)} av fallen.</div>` : ''}
    <details><summary>Analys (svenska & engelska)</summary>
    <div class="note"><b>SV</b>${a.sv ? esc(a.sv) : '<span class="none">Ingen svensk expertanalys inlagd för den här matchen än.</span>'}</div>
    <div class="note"><b>EN</b>${a.en ? esc(a.en) : '<span class="none">Ingen engelsk förhandsanalys hittad (vanligt för lägre ligor) – vi gissar inte.</span>'}</div></details></div>`;
 }
 function vFotboll() {
-  const g = S.data.fotboll[S.fg];
-  const seg = `<div class="seg">${['stryktipset', 'europatipset'].map(k => `<button data-fg="${k}" class="${S.fg === k ? 'on' : ''}">${k === 'stryktipset' ? 'Stryktipset' : 'Europatipset'}</button>`).join('')}</div>`;
-  if (!g || !g.matcher) return `<h2>Fotboll</h2>${seg}${gameHead(g)}`;
-  return `<h2>${esc(g.namn)}</h2><p class="lead">Omgång ${g.omgang} · spelstopp ${esc(fmt(g.spelstopp))} (${esc(left(g.spelstopp))})${g.streckUppdaterat ? ' · streck ' + esc(fmt(g.streckUppdaterat)) : ''}</p>${seg}${gameHead(g)}
+  const g = games()[S.fg];
+  const seg = `<div class="seg">${[...FOOT, 'bomben'].map(k => `<button data-fg="${k}" class="${S.fg === k ? 'on' : ''}">${SPORTNAMN[k]}</button>`).join('')}</div>`;
+  if (S.fg === 'bomben') return vBomben(seg);
+  if (!g || !g.matcher) return `<h2>Sport</h2>${seg}${gameHead(g)}`;
+  return `<h2>${esc(SPORTNAMN[S.fg] || g.namn)}</h2><p class="lead">Omgång ${g.omgang} · spelstopp ${esc(fmt(g.spelstopp))} (${esc(left(g.spelstopp))})${g.streckUppdaterat ? ' · streck ' + esc(fmt(g.streckUppdaterat)) : ''}</p>${seg}${gameHead(g)}
    <div class="legend"><span><b style="background:var(--acc)"></b>Vinstchans (odds)</span><span><b style="background:var(--blu)"></b>Folkets streck</span></div>
    ${g.matcher.map(matchCard).join('')}`;
 }
@@ -157,7 +181,7 @@ function preset(k, size) {
   const o = selFor(k); if (!o) return; const g = o.g, n = o.s.length;
   const order = [...Array(n).keys()].sort((a, b) => openness(g, a) - openness(g, b)); // säkrast först
   let counts;
-  if (g.matcher) { const P = { lilla: [2, 0], mellan: [4, 1], stora: [5, 2] }[size]; counts = Array(n).fill(1); for (let j = 0; j < P[1]; j++) counts[n - 1 - j] = 3; for (let j = 0; j < P[0]; j++) counts[n - 1 - P[1] - j] = 2; }
+  if (g.matcher) { const P = (n <= 8 ? { lilla: [2, 0], mellan: [3, 1], stora: [4, 2] } : { lilla: [2, 0], mellan: [4, 1], stora: [5, 2] })[size]; counts = Array(n).fill(1); for (let j = 0; j < P[1]; j++) counts[n - 1 - j] = 3; for (let j = 0; j < P[0]; j++) counts[n - 1 - P[1] - j] = 2; }
   else { const base = { lilla: [1, 1, 1, 2, 2, 2, 3, 3], mellan: [1, 1, 2, 2, 3, 3, 4, 4], stora: [1, 2, 2, 3, 3, 4, 4, 5] }[size]; counts = base.slice(base.length - n); }
   order.forEach((idx, j) => { const r = rank(g, idx); o.s[idx] = r.slice(0, Math.min(counts[j], r.length)); });
   save('sel', S.sel); render();
@@ -170,7 +194,7 @@ function sysText(k) {
   return `${g.namn} ${g.matcher ? 'omgång ' + g.omgang : g.omgang}\n${lines.join('\n')}\n${c.rows} rader · ${kr(c.cost)}\n(Lejon Spel – endast analys, inga garantier)`;
 }
 function vSystem() {
-  const seg = `<div class="seg">${[['stryktipset', 'Stryk'], ['europatipset', 'Europa'], ['V75', 'V75'], ['V86', 'V86']].map(([k, t]) => `<button data-sg="${k}" class="${S.sg === k ? 'on' : ''}">${t}</button>`).join('')}</div>`;
+  const seg = `<div class="seg">${[['stryktipset', 'Stryk'], ['europatipset', 'Europa'], ['topptipset', 'Topp'], ['powerplay', 'Power'], ['V75', 'V75'], ['V86', 'V86']].map(([k, t]) => `<button data-sg="${k}" class="${S.sg === k ? 'on' : ''}">${t}</button>`).join('')}</div>`;
   const o = selFor(S.sg); const g = games()[S.sg];
   if (!o) return `<h2>Systembyggare</h2>${seg}${gameHead(g)}`;
   const c = sysCalc(S.sg);
@@ -180,7 +204,7 @@ function vSystem() {
     : g.lopp.map((l, i) => `<div class="card"><div class="row"><b>Avd ${l.avd} · ${esc(l.bana)}</b>${l.skrall ? lvl(l.skrall.niva) : ''}</div>
      <div class="muted small">Toppchans: ${rank(g, i).slice(0, 3).map(nr => { const h = l.starter.find(x => x.nr === nr); return `${nr} ${esc(h.namn)} (${pct(h.vinstchans ?? h.streck)})`; }).join(' · ')}</div>
      <div class="hgrid">${l.starter.map(h => `<button data-pick="${i}:${h.nr}" class="${o.s[i].includes(h.nr) ? 'on' : ''}" ${h.struken ? 'disabled' : ''}>${h.nr}</button>`).join('')}</div></div>`).join('');
-  return `<h2>Systembyggare</h2><p class="lead">${esc(g.namn)} ${g.matcher ? 'omgång ' + g.omgang : ''} · ${kr(g.radpris)}/rad · spelstopp ${esc(fmt(g.spelstopp))}</p>${seg}${gameHead(g)}
+  return `<h2>Systembyggare</h2><p class="lead">${esc(SPORTNAMN[S.sg] || g.namn)} ${g.matcher ? 'omgång ' + g.omgang : ''} · ${kr(g.radpris)}/rad · spelstopp ${esc(fmt(g.spelstopp))}</p>${seg}${gameHead(g)}
    <div class="card sum"><div class="row"><div><div class="muted small">Rader</div><div class="big">${c.rows.toLocaleString('sv-SE')}</div></div><div style="text-align:right"><div class="muted small">Kostnad</div><div class="big" style="color:var(--acc)">${kr(c.cost)}</div></div></div>
    ${c.rows === 0 ? '<div class="muted small">Välj minst ett tecken/en häst i varje ' + (g.matcher ? 'match' : 'avdelning') + '.</div>' : ''}
    <div class="btns"><button data-preset="lilla">Lilla</button><button data-preset="mellan">Mellan</button><button data-preset="stora">Stora</button><button data-clear="1">Rensa</button></div>
@@ -192,8 +216,9 @@ function vSystem() {
 
 /* ---------------- Exakt & Odds ---------------- */
 function vExakt() {
-  const seg = `<div class="seg">${[['stryktipset', 'Stryktipset'], ['europatipset', 'Europatipset'], ['V75', 'V75 Odds']].map(([k, t]) => `<button data-eg="${k}" class="${S.eg === k ? 'on' : ''}">${t}</button>`).join('')}</div>`;
+  const seg = `<div class="seg">${[['stryktipset', 'Stryk'], ['europatipset', 'Europa'], ['topptipset', 'Topp'], ['powerplay', 'Power 🏒'], ['bomben', 'Bomben 💣'], ['V75', 'V75 Odds']].map(([k, t]) => `<button data-eg="${k}" class="${S.eg === k ? 'on' : ''}">${t}</button>`).join('')}</div>`;
   const g = games()[S.eg];
+  if (S.eg === 'bomben') return `<h2>Exakt & Odds · Bomben</h2><p class="lead">Exakt resultat per match i öppna Bomben-omgångar</p>${seg}${bombenBody()}`;
   if (S.eg === 'V75') {
     if (!g || !g.lopp) return `<h2>Exakt & Odds</h2>${seg}${gameHead(g)}`;
     const cards = g.lopp.map(l => {
@@ -210,14 +235,15 @@ function vExakt() {
   if (!g || !g.matcher) return `<h2>Exakt & Odds</h2>${seg}${gameHead(g)}`;
   const cards = g.matcher.map(m => {
     if (m.struken) return `<div class="card"><h3>${m.nr}. ${esc(m.hemma)} – ${esc(m.borta)}</h3><div class="muted">Struken – lottas.</div></div>`;
+    if (m.duell) return `<div class="card"><h3>${m.nr}. ${esc(m.hemma)} – ${esc(m.borta)}</h3><div class="muted">${esc(m.liga || '')} · ${esc(fmt(m.start))} · <span class="chip">Spelarduell</span></div><div class="xlbl">Folkets streck 1 / X / 2</div><div class="xodds">${[0, 1, 2].map(i => `<div class="xodd"><div class="t">${'1X2'[i]}</div><div class="o">${pct(m.streck && m.streck[i])}</div><div class="c">inga odds</div></div>`).join('')}</div><div class="muted small" style="margin-top:6px">Svenska Spel visar inga odds för spelarduellen, så exakt resultat räknas inte.</div></div>`;
     const odds = [0, 1, 2].map(i => `<div class="xodd"><div class="t">${'1X2'[i]}</div><div class="o">${m.odds ? m.odds[i].toLocaleString('sv-SE', { minimumFractionDigits: 2 }) : '–'}</div><div class="c">${pct(m.vinstchans && m.vinstchans[i])}</div></div>`).join('');
     const cs = m.exakt ? `<div class="xlbl">Exakt resultat</div><div class="xcs">${m.exakt.topp.map((t, i) => `<div class="xpill ${i === 0 ? 'gold' : ''}"><div class="r">${t.res}</div><div class="p">${pct(t.p)}</div></div>`).join('')}</div>
-      <div class="muted small" style="margin-top:6px">Modell från odds · xG ${esc(m.hemma)} ${m.exakt.xgHemma.toLocaleString('sv-SE')} – ${m.exakt.xgBorta.toLocaleString('sv-SE')} ${esc(m.borta)}</div>` : '<div class="muted small">Odds saknas – exakt resultat kan inte räknas än.</div>';
+      <div class="muted small" style="margin-top:6px">Modell från odds${S.eg === 'powerplay' ? ' (ordinarie tid)' : ''} · xG ${esc(m.hemma)} ${m.exakt.xgHemma.toLocaleString('sv-SE')} – ${m.exakt.xgBorta.toLocaleString('sv-SE')} ${esc(m.borta)}</div>` : '<div class="muted small">Odds saknas – exakt resultat kan inte räknas än.</div>';
     return `<div class="card"><h3>${m.nr}. ${esc(m.hemma)} – ${esc(m.borta)}</h3><div class="muted">${esc(m.liga || '')} · ${esc(fmt(m.start))}</div>
       <div class="xlbl">Odds 1 / X / 2</div><div class="xodds">${odds}</div>${cs}</div>`;
   }).join('');
-  return `<h2>Exakt & Odds</h2><p class="lead">${esc(g.namn)} omgång ${g.omgang} · spelstopp ${esc(fmt(g.spelstopp))} (${esc(left(g.spelstopp))})</p>${seg}${gameHead(g)}${cards}
-    <p class="muted" style="margin:10px 4px">Odds från Svenska Spel. Exakt resultat är en Poisson-modell räknad från oddsen – en sannolikhet, ingen garanti.</p>`;
+  return `<h2>Exakt & Odds</h2><p class="lead">${esc(SPORTNAMN[S.eg] || g.namn)} omgång ${g.omgang} · spelstopp ${esc(fmt(g.spelstopp))} (${esc(left(g.spelstopp))})</p>${seg}${gameHead(g)}${cards}
+    <p class="muted" style="margin:10px 4px">Odds från Svenska Spel. Exakt resultat är en Poisson-modell räknad från oddsen – en sannolikhet, ingen garanti.${S.eg === 'powerplay' ? ' Hockey: 1X2 och resultat gäller ordinarie tid (60 min).' : ''}</p>`;
 }
 
 /* ---------------- Render & events ---------------- */
@@ -226,6 +252,7 @@ function render() {
   const v = { oversikt: vOversikt, fotboll: vFotboll, trav: vTrav, exakt: vExakt, system: vSystem }[S.view] || vOversikt;
   $('#app').innerHTML = v();
   document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.v === S.view));
+  document.querySelectorAll('.seg button.on').forEach(b => { const p = b.parentElement; p.scrollLeft = b.offsetLeft - (p.clientWidth - b.offsetWidth) / 2; });
 }
 function go(v) { S.view = v; save('view', v); render(); window.scrollTo({ top: 0 }); }
 document.addEventListener('click', e => {
