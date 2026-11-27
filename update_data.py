@@ -180,6 +180,7 @@ def football(product, notes, sport="fotboll", endpoint=None, product_id=None):
             "duell": ev.get("participantType") == "Player",
             "odds": odds if all(odds) else None, "streck": streck if all(x is not None for x in streck) else None,
         }
+        row.update(live_fields(m))
         if row["odds"]:
             inv = [1 / x for x in odds]
             s = sum(inv)
@@ -210,6 +211,53 @@ def football(product, notes, sport="fotboll", endpoint=None, product_id=None):
         "streckUppdaterat": next((ev.get("svenskaFolket", {}) or {}).get("date") for ev in d.get("drawEvents", []) if ev.get("svenskaFolket")),
         "sport": sport, "matcher": matcher,
     }
+
+
+def live_fields(m):
+    """Status och resultat enligt Svenska Spel vid uppdateringen (inte sekund för sekund)."""
+    out = {"lage": m.get("sportEventStatus")}
+    res = {r.get("sportEventResultType"): r for r in (m.get("result") or [])}
+    cur = res.get("Current") or res.get("Fulltime")
+    if cur and cur.get("home") not in (None, "") and cur.get("away") not in (None, ""):
+        out["resultat"] = [int(num(cur["home"]) or 0), int(num(cur["away"]) or 0)]
+    per = [res[k] for k in ("Period1", "Period2", "Period3") if k in res]
+    if len(per) == 3:  # hockey: ordinarie tid (1X2 på Powerplay gäller 60 min)
+        out["ordinarie"] = [sum(int(num(r["home"]) or 0) for r in per), sum(int(num(r["away"]) or 0) for r in per)]
+    return out
+
+
+def senaste(key, endpoint, new, old_all, keep_h=30):
+    """Behåll stängda omgångar (för Live-fliken) en stund efter att nästa omgång släppts."""
+    t = now()
+    cands = []
+    prev = old_all.get(key)
+    if prev and prev.get("omgang") and prev.get("matcher") and prev.get("omgang") != (new or {}).get("omgang"):
+        cands.append(prev)
+    cands += [x for x in (old_all.get("_senaste", {}).get(key) or []) if x.get("omgang") != (new or {}).get("omgang")]
+    out, seen = [], set()
+    for c in cands:
+        if c["omgang"] in seen:
+            continue
+        seen.add(c["omgang"])
+        last = max((parse(m["start"]) for m in c["matcher"] if m.get("start")), default=None)
+        if not last or last < t - timedelta(hours=keep_h):
+            continue
+        try:
+            dr = (get(f"https://api.spela.svenskaspel.se/draw/1/{endpoint}/draws/{c['omgang']}") or {}).get("draw") or {}
+            byn = {ev["eventNumber"]: ev for ev in dr.get("drawEvents", [])}
+        except Exception:
+            byn = {}
+        ms = []
+        for m in c["matcher"]:
+            r = {k: m.get(k) for k in ("nr", "matchId", "hemma", "borta", "liga", "land", "start", "status", "struken", "duell", "vinstchans", "streck", "resultat", "ordinarie", "lage")}
+            ev = byn.get(m["nr"])
+            if ev and ev.get("match"):
+                r["status"] = ev["match"].get("status")
+                r.update(live_fields(ev["match"]))
+            ms.append(r)
+        out.append({"id": key, "namn": c.get("namn"), "omgang": c["omgang"], "spelstopp": c.get("spelstopp"),
+                    "status": dr.get("drawState") or c.get("status"), "sport": c.get("sport"), "radpris": c.get("radpris"), "matcher": ms})
+    return out
 
 
 # ---------------- Bomben ----------------
@@ -407,6 +455,15 @@ def main():
                 res[key] = prev
             else:
                 res[key] = {"id": key, "namn": key, "status": "fel", "meddelande": "Kunde inte hämta just nu – försöker igen vid nästa uppdatering."}
+    old_all = old.get("fotboll", {}) | old.get("hockey", {})
+    old_all["_senaste"] = (old.get("live") or {}).get("senaste") or {}
+    sen = {}
+    for key, ep in (("stryktipset", "stryktipset"), ("europatipset", "europatipset"), ("topptipset", "topptipset"), ("powerplay", "powerplay")):
+        try:
+            sen[key] = senaste(key, ep, res.get(key), old_all)
+        except Exception as e:
+            errors.append(f"live {key}: {e}")
+            sen[key] = []
     data = {
         "uppdaterad": iso(now()),
         "kallor": {"fotboll": "Svenska Spel (publikt API)", "hockey": "Svenska Spel (publikt API)", "trav": "ATG (publikt API)"},
@@ -414,6 +471,7 @@ def main():
         "hockey": {"powerplay": res["powerplay"]},
         "bomben": res["bomben"],
         "trav": {"V75": res["V75"], "V86": res["V86"]},
+        "live": {"senaste": sen, "kalla": "Svenska Spel vid uppdateringen; i appen hämtas live från ESPN var 20:e sekund"},
         "lankar": notes.get("links", {}),
         "fel": errors,
     }

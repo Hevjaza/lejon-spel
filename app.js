@@ -37,9 +37,11 @@ async function refresh(manual) {
     if (!r.ok) throw new Error(r.status);
     S.data = await r.json();
     const live = Object.entries(games()).map(([k, g]) => k + ':' + g.omgang);
+    Object.entries(((S.data.live || {}).senaste) || {}).forEach(([k, arr]) => (arr || []).forEach(g => live.push(k + ':' + g.omgang)));
     Object.keys(S.sel).forEach(id => { if (!live.includes(id)) delete S.sel[id]; }); save('sel', S.sel);
     $('#upd').textContent = 'Uppdaterad ' + fmt(S.data.uppdaterad);
     render();
+    if (S.view === 'live' && !LV.t) liveSched();
     if (manual) toast('Uppdaterat');
   } catch (e) {
     $('#upd').textContent = 'Kunde inte hämta data – visar senast sparade';
@@ -66,10 +68,23 @@ function skrallF(m) { const b = m.skrall && m.skrall.basta; return b ? `${b.teck
 function skrallIdxF(m) { const b = m.skrall && m.skrall.basta; return b ? '1X2'.indexOf(b.tecken) : -1; }
 function winH(l) { const hs = l.starter.filter(h => !h.struken && h.vinstchans != null); if (!hs.length) return null; return hs.reduce((a, h) => h.vinstchans > a.vinstchans ? h : a); }
 function skrallH(l) { const b = l.skrall && l.skrall.basta; return b ? `nr ${b.nr} ${b.namn}` : 'Ingen tydlig skräll'; }
-function strip(items, cls) { return `<div class="strip ${cls || ''}">${items.map(([k, v, cls]) => `<div><span>${k}</span><b class="${cls || ''}">${esc(v)}</b></div>`).join('')}</div>`; }
-function stripF(m) {
-  return strip([['Trolig vinnare (enligt oddsen)', winnerF(m), 'win'], ['Bästa skräll', skrallF(m), m.skrall && m.skrall.basta ? 'skr' : 'none2'], ['Troligast resultat', m.exakt ? `${m.exakt.topp[0].res} (${Math.round(m.exakt.topp[0].p)} %)` : '–']]);
+function strip(items, cls) { return `<div class="strip ${cls || ''}">${items.map(([k, v, cls, full]) => `<div class="${full ? 'full' : ''}"><span>${k}</span><b class="${cls || ''}">${esc(v)}</b></div>`).join('')}</div>`; }
+function spikF(m) { // Spik eller gardera för fotboll/hockey, i klartext
+  if (!m.vinstchans) return null;
+  const p = m.vinstchans, i = winIdxF(m), fav = m.streck ? m.streck.indexOf(Math.max(...m.streck)) : i;
+  const over = m.streck ? m.streck[fav] - p[fav] : 0, X = m.duell ? 'X (lika)' : 'X (oavgjort)';
+  const n = i === 1 ? X : `${i === 0 ? m.hemma : m.borta} (${'1X2'[i]})`;
+  if (p[i] >= 60 && (!m.streck || p[i] - m.streck[i] >= -5)) return { spik: true, t: `Spik: ${n}` };
+  if (over >= 10) return { spik: false, t: `Gardera – favoriten (${'1X2'[fav]}) är överspelad` };
+  if (p[i] >= 45) { const j = [0, 1, 2].filter(x => x !== i).sort((a, b) => p[b] - p[a])[0]; return { spik: false, t: `Halvgardera: ${[i, j].sort().map(x => '1X2'[x]).join('')}` }; }
+  return { spik: false, t: 'Helgardera – öppen match' };
 }
+function stripF(m) {
+  const sp = spikF(m);
+  return strip([['Trolig vinnare (enligt oddsen)', winnerF(m), m.vinstchans ? 'win' : 'none2', 1], ...(sp ? [['Spika eller gardera?', sp.t, sp.spik ? 'win' : 'gard', 1]] : []), ['Bästa skräll', skrallF(m), m.skrall && m.skrall.basta ? 'skr' : 'none2'], ['Troligast resultat', m.exakt ? `${m.exakt.topp[0].res} (${Math.round(m.exakt.topp[0].p)} %)` : '–']]);
+}
+const KN = [['Manchester United', 'Man Utd'], ['Manchester City', 'Man City'], ['Nottingham Forest', 'Nottm Forest'], ['Wolverhampton', 'Wolves'], ['Sheffield Wednesday', 'Sheff Wed'], ['Sheffield United', 'Sheff Utd'], ['Queens Park Rangers', 'QPR'], ['West Bromwich', 'West Brom'], ['Borussia Mönchengladbach', "M'gladbach"], ['Borussia Dortmund', 'Dortmund'], ['Brighton & Hove Albion', 'Brighton']];
+function kn(n) { n = String(n || ''); for (const [a, b] of KN) if (n.startsWith(a)) return b + n.slice(a.length); return n; }
 function spikH(l) { // Spik eller gardera, i klartext
   const w = winH(l); if (!w) return null;
   const hs = l.starter.filter(h => !h.struken && h.streck != null);
@@ -107,6 +122,7 @@ function vOversikt() {
   return `<h2>Översikt</h2><p class="lead">Nästa omgångar – uppdateras automatiskt.</p>
   <button class="bigbtn" data-sv="stryktipset">🏆 Bygg Storvinst-kupong</button>
   <div class="chips" style="margin:-4px 0 14px;justify-content:center">${['europatipset', 'topptipset', 'powerplay', 'V75'].map(k => `<button class="chip tapchip" data-sv="${k}">${esc(SPORTNAMN[k] || k)}</button>`).join('')}</div>
+  <button class="livebtn" data-v="live"><i class="pulse"></i> Live – följ matcherna och din kupong</button>
   <div class="card"><h3>⏱ Spelstopp</h3><div class="list">${cd}</div></div>
   <div class="card"><h3>✅ Dagens tydligaste vinnare</h3><div class="muted small">Trolig vinnare enligt oddsen – ingen garanti</div><div class="list">${wins.slice(0, 6).map(w => `<div class="li"><span><b class="win">${esc(w.n)}</b>${w.mot ? ` <span class="muted">mot ${esc(w.mot)}</span>` : ''}<br><span class="muted small">${esc(w.g)}</span></span><span class="big2">${Math.round(w.p)} %</span></div>`).join('') || '<div class="none">Inga odds än</div>'}</div></div>
   <div class="card"><h3>🎯 Bästa skrällar</h3><div class="muted small">Mer chans än folket tror</div><div class="list">${bs.slice(0, 6).map(o => `<div class="li"><span><b class="skr">${esc(o.w)}</b><br><span class="muted small">${esc(o.t)}</span></span><span class="small">${Math.round(o.b.chans)} % chans<br><span class="muted">${Math.round(o.b.streck)} % folket</span></span></div>`).join('') || '<div class="none">Inga tydliga skrällar just nu</div>'}</div></div>
@@ -145,10 +161,24 @@ function moreF(m) {
     <div class="note"><b>SV</b>${a.sv ? esc(a.sv) : '<span class="none">Ingen svensk analys inlagd än.</span>'}</div>
     <div class="note"><b>EN</b>${a.en ? esc(a.en) : '<span class="none">Ingen engelsk analys hittad – vi gissar inte.</span>'}</div></details>`;
 }
-function matchCard(m) {
-  if (m.struken) return `<div class="card"><h3>${m.nr}. ${esc(m.hemma)} – ${esc(m.borta)}</h3><div class="muted">Matchen är struken – lottas.</div></div>`;
-  return `<div class="card"><h3>${m.nr}. ${esc(m.hemma)} – ${esc(m.borta)}</h3><div class="muted small">${esc(m.liga || '')} · ${esc(fmt(m.start))}</div>
-    ${stripF(m)}${oddsRow(m)}${moreF(m)}</div>`;
+function matchCard(m, i) {
+  if (m.struken) return `<div class="mc"><div class="mch"><span class="mnr">${m.nr}</span><div class="mtm"><b>${esc(kn(m.hemma))} – ${esc(kn(m.borta))}</b><span>Struken – lottas</span></div></div></div>`;
+  const wi = winIdxF(m), si = skrallIdxF(m), L = liveOf(m);
+  const lc = L.started && L.sc ? ` · <b class="${L.live ? 'lvtxt' : ''}">${L.live ? '● ' : ''}${L.sc.join('–')} ${esc(L.st.txt)}</b>` : '';
+  const cells = [0, 1, 2].map(t => `<div class="mo ${t === wi ? 'fav' : ''}"><b>${'1X2'[t]}${t === wi ? '<i class="dot dwin"></i>' : ''}${t === si ? '<i class="dot dskr"></i>' : ''}</b><span class="o">${m.odds ? m.odds[t].toLocaleString('sv-SE', { minimumFractionDigits: 2 }) : '–'}</span><span class="c">${m.vinstchans ? Math.round(m.vinstchans[t]) + ' %' : m.streck ? 'folket ' + Math.round(m.streck[t]) + ' %' : ''}</span></div>`).join('');
+  const k = mkey(m);
+  return `<details class="mc" data-mf="${i}" ${LV.open.has('mf:' + k) ? 'open' : ''}><summary><div class="mch"><span class="mnr">${m.nr}</span><div class="mtm"><b>${esc(kn(m.hemma))} – ${esc(kn(m.borta))}</b><span>${esc(m.liga || '')} · ${esc(fmt(m.start))}${lc}</span></div><span class="mexp">▾</span></div><div class="mo3">${cells}</div></summary>
+    <div class="mbody">${stripF(m)}${tableF(m)}
+    ${m.exakt ? `<div class="muted small" style="margin-top:6px">Troliga resultat: ${m.exakt.topp.map(t => `${t.res} (${Math.round(t.p)} %)`).join(' · ')} – räknat från oddsen${m.exakt.modell.includes('ordinarie') ? ', ordinarie tid' : ''}.</div>` : ''}
+    ${m.duell ? `<div class="muted small" style="margin-top:6px">Spelarduell: 1 = ${esc(m.hemma)}, X = lika, 2 = ${esc(m.borta)}. Inga odds från Svenska Spel.</div>` : ''}
+    <div class="xlbl">Matchfakta</div><div data-fx="${esc(k)}">${LV.facts[k] ? factsHtml(m) : '<div class="muted small">Hämtar matchfakta…</div>'}</div>
+    <div class="xlbl">Analys</div><div class="note"><b>SV</b>${(m.analys || {}).sv ? esc(m.analys.sv) : '<span class="none">Ingen svensk analys inlagd än.</span>'}</div>
+    <div class="note"><b>EN</b>${(m.analys || {}).en ? esc(m.analys.en) : '<span class="none">Ingen engelsk analys hittad – vi gissar inte.</span>'}</div></div></details>`;
+}
+function tableF(m) {
+  if (!m.odds && !m.streck) return '';
+  return `<div class="ot"><div class="oth"><span></span><span>Odds</span><span>Chans</span><span>Folket</span><span>Värde</span></div>${[0, 1, 2].map(t => `<div><b>${'1X2'[t]}</b><span>${m.odds ? m.odds[t].toLocaleString('sv-SE', { minimumFractionDigits: 2 }) : '–'}</span><span>${m.vinstchans ? Math.round(m.vinstchans[t]) + ' %' : '–'}</span><span>${m.streck ? Math.round(m.streck[t]) + ' %' : '–'}</span><span class="${valCls(m.spelvarde && m.spelvarde[t])}">${m.spelvarde ? sgn(m.spelvarde[t]) : '–'}</span></div>`).join('')}</div>
+    <div class="muted small">Värde = chans enligt odds minus folkets streck. Plus = mindre spelat än oddsen säger.</div>`;
 }
 function vFotboll() {
   const g = games()[S.fg];
@@ -157,6 +187,7 @@ function vFotboll() {
   if (!g || !g.matcher) return `<h2>Sport</h2>${seg}${gameHead(g)}`;
   return `<h2>${esc(SPORTNAMN[S.fg] || g.namn)}</h2><p class="lead">Spelstopp ${esc(fmt(g.spelstopp))} · ${esc(left(g.spelstopp))}</p>${seg}
    <button class="bigbtn" data-sv="${S.fg}">🏆 Bygg Storvinst för ${esc(SPORTNAMN[S.fg] || g.namn)}</button>${gameHead(g)}
+   <div class="muted small" style="margin:-4px 4px 8px">Tryck på en match för analys, form, tabell och inbördes möten.</div>
    ${g.matcher.map(matchCard).join('')}`;
 }
 
@@ -220,9 +251,9 @@ function vSystem() {
   if (!o) return `<h2>Systembyggare</h2>${seg}${gameHead(g)}`;
   const c = sysCalc(S.sg);
   const dots = (win, skr) => `${win ? '<i class="dot dwin"></i>' : ''}${skr ? '<i class="dot dskr"></i>' : ''}`;
-  const body = g.matcher ? g.matcher.map((m, i) => { const wi = winIdxF(m), si = skrallIdxF(m); return `<div class="card"><b>${m.nr}. ${esc(m.hemma)} – ${esc(m.borta)}</b>
-     <div class="muted small" style="margin:2px 0 8px">Trolig: <span class="${m.vinstchans ? 'win' : ''}">${esc(winnerF(m))}</span> · Skräll: <span class="${m.skrall && m.skrall.basta ? 'skr' : ''}">${esc(skrallF(m))}</span></div>
-     <div class="tbtn">${[0, 1, 2].map(t => `<button data-pick="${i}:${t}" class="${o.s[i].includes(t) ? 'on' : ''}">${dots(t === wi, t === si)}${'1X2'[t]}</button>`).join('')}</div></div>`; }).join('')
+  const body = g.matcher ? `<div class="card sysl">${g.matcher.map((m, i) => { const wi = winIdxF(m), si = skrallIdxF(m); return `<div class="srow"><div class="sinfo"><b>${m.nr}. ${esc(kn(m.hemma))} – ${esc(kn(m.borta))}</b>
+     <span>${m.vinstchans ? `Trolig <b class="win">${'1X2'[wi]}</b> ${Math.round(m.vinstchans[wi])} %` : (m.duell ? 'Spelarduell' : 'Odds saknas')}${si >= 0 ? ` · skräll <b class="skr">${'1X2'[si]}</b>` : ''}</span></div>
+     <div class="tbtn sm">${[0, 1, 2].map(t => `<button data-pick="${i}:${t}" class="${o.s[i].includes(t) ? 'on' : ''}">${dots(t === wi, t === si)}${'1X2'[t]}</button>`).join('')}</div></div>`; }).join('')}</div>`
     : g.lopp.map((l, i) => { const w = winH(l), sk = l.skrall && l.skrall.basta; return `<div class="card"><b>Avd ${l.avd} · ${esc(l.bana)}</b>
      <div class="muted small" style="margin:2px 0 4px">${w ? `Trolig: <span class="win">nr ${w.nr} ${esc(w.namn)} (${Math.round(w.vinstchans)} %)</span> · Skräll: <span class="${sk ? 'skr' : ''}">${esc(skrallH(l))}</span>` : 'Odds släpps närmare loppet'}</div>
      <div class="hgrid">${l.starter.map(h => `<button data-pick="${i}:${h.nr}" class="${o.s[i].includes(h.nr) ? 'on' : ''}" ${h.struken ? 'disabled' : ''}>${dots(w && h.nr === w.nr, sk && h.nr === sk.nr)}${h.nr}</button>`).join('')}</div></div>`; }).join('');
@@ -371,12 +402,12 @@ function storvinstBox(id) {
 /* ---------------- Render & events ---------------- */
 function render() {
   if (!S.data) return;
-  const v = { oversikt: vOversikt, fotboll: vFotboll, trav: vTrav, exakt: vExakt, system: vSystem }[S.view] || vOversikt;
+  const v = { oversikt: vOversikt, fotboll: vFotboll, live: vLive, trav: vTrav, exakt: vExakt, system: vSystem }[S.view] || vOversikt;
   $('#app').innerHTML = v();
   document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b.dataset.v === S.view));
   const y0 = window.scrollY; document.querySelectorAll('.seg button.on').forEach(b => { const p = b.parentElement; if (p.scrollWidth > p.clientWidth) { const pr = p.getBoundingClientRect(), br = b.getBoundingClientRect(); p.scrollTo({ left: p.scrollLeft + (br.left + br.width / 2) - (pr.left + pr.width / 2) }); } }); window.scrollTo(0, y0);
 }
-function go(v) { S.view = v; save('view', v); render(); window.scrollTo({ top: 0 }); }
+function go(v) { S.view = v; save('view', v); render(); window.scrollTo({ top: 0 }); liveSched(); }
 document.addEventListener('click', e => {
   const b = e.target.closest('button,[data-go]'); if (!b) return;
   const d = b.dataset;
@@ -384,6 +415,8 @@ document.addEventListener('click', e => {
   if (d.sv) { S.sg = d.sv; S.view = 'system'; save('view', 'system'); storvinst(d.sv); render(); window.scrollTo({ top: 0 }); return; }
   if (d.go) { if (d.go === 'fotboll') S.fg = d.g; else { S.tg = d.g; S.avd = 0; } return go(d.go); }
   if (d.fg) { S.fg = d.fg; return render(); }
+  if (d.lg) { S.lg = d.lg; return render(); }
+  if (d.lr) { toast('Hämtar live…'); return liveTick(true); }
   if (d.tg) { S.tg = d.tg; S.avd = 0; return render(); }
   if (d.avd) { S.avd = +d.avd; return render(); }
   if (d.sort) { S.sortH = d.sort; return render(); }
@@ -395,10 +428,10 @@ document.addEventListener('click', e => {
   if (d.clear) { const o = selFor(S.sg); o.s.forEach((_, i) => o.s[i] = []); save('sel', S.sel); return render(); }
   if (d.pick) { const [i, t] = d.pick.split(':').map(Number); const o = selFor(S.sg); const a = o.s[i]; const j = a.indexOf(t); j >= 0 ? a.splice(j, 1) : a.push(t); save('sel', S.sel); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
   if (b.id === 'copy') { const t = sysText(S.sg); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('System kopierat'), () => { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('System kopierat'); }); }
-  if (b.id === 'refresh') refresh(true);
+  if (b.id === 'refresh') { refresh(true); if (S.view === 'live') liveTick(true); }
 });
-S.view = (['oversikt','fotboll','trav','exakt','system'].includes(location.hash.slice(1)) && location.hash.slice(1)) || load('view') || 'oversikt';
+S.view = (['oversikt','fotboll','live','trav','exakt','system'].includes(location.hash.slice(1)) && location.hash.slice(1)) || load('view') || 'oversikt';
 refresh();
 setInterval(refresh, 5 * 60 * 1000);
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refresh(); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refresh(); liveSched(); });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { });
