@@ -284,7 +284,7 @@ function factsHtml(m) {
   const fH = formOf(x.hid), fA = formOf(x.aid);
   const chips = f => f.map(r => `<i class="fr f${r}">${r}</i>`).join('');
   if (fH || fA) rows.push(['Form (senaste 5, nyast sist)', `<div>${esc(m.hemma)} ${fH ? chips(fH) : 'Saknas'}</div><div>${esc(m.borta)} ${fA ? chips(fA) : 'Saknas'}</div>`, true]);
-  const tab = id => { for (const g of ((s.standings || {}).groups || [])) { const es = (g.standings || {}).entries || []; const i = es.findIndex(e => e.id === id); if (i >= 0) { const st = Object.fromEntries(es[i].stats.map(q => [q.name, q.displayValue])); return `${st.rank || i + 1}:a · ${st.points ?? '–'} p · ${st.gamesPlayed ?? '–'} m${g.header ? '' : ''}`; } } return null; };
+  const tab = id => { for (const g of ((s.standings || {}).groups || [])) { const es = (g.standings || {}).entries || []; const i = es.findIndex(e => e.id === id); if (i >= 0) { const st = Object.fromEntries(es[i].stats.map(q => [q.name, q.displayValue])); return [`${st.rank || i + 1}:a`, st.points != null ? `${st.points} p` : '', st.gamesPlayed != null ? `${st.gamesPlayed} m` : ''].filter(Boolean).join(' · '); } } return null; };
   const tH = tab(x.hid), tA = tab(x.aid);
   if (tH || tA) rows.push(['Tabell', `<div>${esc(m.hemma)}: ${esc(tH || 'Saknas')}</div><div>${esc(m.borta)}: ${esc(tA || 'Saknas')}</div>`, true]);
   const ser = (s.seasonseries || []).find(q => q.type === 'head-to-head') || (s.seasonseries || [])[0];
